@@ -169,12 +169,17 @@ Prompt templates: structural review, migration-plan review, and rollback-plan ex
 | 11 | GitLab and local Git adapters | Planned |
 | 12 | GitHub App authentication and team features | Future |
 | 13 | Separate UI/UX acceptance checks and browser interaction regression tests | Planned |
+| 14 | User-selectable visual themes | Future |
+| 15 | Russian and English UI localisation with a language switcher (AI-review prompt remains intentionally untranslated) | Future |
+| 16 | Adaptive-layout review for narrow and touch screens | Future |
 
 ## 11. Current implementation notes
 
 The current public demo intentionally uses synthetic data. Tags, decisions, targets, and history strategies are stored locally in the browser using the versioned `repo-atlas.workspace.v1` schema. They never leave the browser and can be reset to the demo workspace. Generated prompts still live only in memory and reset after a page refresh.
 
 The next implementation milestone is a fine-grained read-only GitHub importer.
+
+Repository descriptions are imported from GitHub and technology classification combines the GitHub Languages endpoint with recognised technology topics. Deeper dependency and manifest analysis is a later enhancement.
 
 ## 12. Definition of done for the first usable release
 

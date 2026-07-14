@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { configuredOwners, fetchOwnedRepositories, normalizeRepository } from "../server/github.js";
+import { classifyTechnologies, configuredOwners, fetchOwnedRepositories, normalizeRepository } from "../server/github.js";
 
 test("parses a safe, unique list of configured owners", () => {
   assert.deepEqual(configuredOwners("Smile-112, team, Smile-112, invalid owner"), ["Smile-112", "team"]);
@@ -18,6 +18,10 @@ test("normalizes GitHub repositories without exposing token data", () => {
   assert.equal(normalized.status, "Active");
   assert.deepEqual(normalized.tags, ["demo"]);
   assert.equal("token" in normalized, false);
+});
+
+test("classifies languages and recognised technology topics", () => {
+  assert.deepEqual(classifyTechnologies({ language: "Python", topics: ["docker", "minecraft", "fastapi"] }, { Python: 1000, Shell: 12 }), ["docker", "fastapi", "Python", "Shell"]);
 });
 
 test("filters imported repositories to the requested owner", async () => {
