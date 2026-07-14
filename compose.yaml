@@ -1,0 +1,11 @@
+services:
+  repo-atlas:
+    build:
+      context: .
+    image: repo-atlas:local
+    container_name: repo-atlas
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:8080:8080"

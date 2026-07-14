@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fetchOwnedRepositories, normalizeRepository } from "../server/github.js";
+import { configuredOwners, fetchOwnedRepositories, normalizeRepository } from "../server/github.js";
+
+test("parses a safe, unique list of configured owners", () => {
+  assert.deepEqual(configuredOwners("Smile-112, team, Smile-112, invalid owner"), ["Smile-112", "team"]);
+});
 
 test("normalizes GitHub repositories without exposing token data", () => {
   const normalized = normalizeRepository({

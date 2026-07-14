@@ -1,7 +1,7 @@
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { fetchOwnedRepositories } from "./github.js";
+import { configuredOwners, fetchOwnedRepositories } from "./github.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -11,8 +11,10 @@ app.disable("x-powered-by");
 app.use(express.json({ limit: "32kb" }));
 
 app.get("/api/health", (_request, response) => {
-  response.json({ ok: true, githubConfigured: Boolean(process.env.GITHUB_TOKEN) });
+  response.json({ ok: true, githubConfigured: Boolean(process.env.GITHUB_TOKEN), owners: configuredOwners(process.env.GITHUB_OWNERS) });
 });
+
+app.get("/api/github/owners", (_request, response) => response.json({ owners: configuredOwners(process.env.GITHUB_OWNERS) }));
 
 app.get("/api/github/repositories", async (request, response) => {
   const token = process.env.GITHUB_TOKEN;
@@ -24,6 +26,11 @@ app.get("/api/github/repositories", async (request, response) => {
   const owner = typeof request.query.owner === "string" ? request.query.owner.trim() : "";
   if (owner.length > 39 || !/^[A-Za-z0-9-]*$/.test(owner)) {
     response.status(400).json({ error: "Owner must be a valid GitHub login." });
+    return;
+  }
+  const allowedOwners = configuredOwners(process.env.GITHUB_OWNERS);
+  if (allowedOwners.length && (!owner || !allowedOwners.some((allowed) => allowed.toLowerCase() === owner.toLowerCase()))) {
+    response.status(400).json({ error: "Choose an owner configured on this server." });
     return;
   }
 

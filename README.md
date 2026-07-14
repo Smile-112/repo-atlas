@@ -47,6 +47,8 @@ docker run --rm -p 8080:8080 \
 
 The token stays on the server and is never sent to the browser bundle, saved in the workspace, or included in AI-review prompts. Do not deploy this first self-hosted version directly to the public internet without an access-control layer.
 
+For the complete token and Docker Compose setup, see [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
+
 ## Roadmap
 
 1. GitHub read-only importer for a single account.

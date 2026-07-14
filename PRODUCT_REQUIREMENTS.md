@@ -35,6 +35,10 @@ Repo Atlas is a planning tool. It must not move, archive, edit, or delete GitHub
 - public demo with synthetic data only;
 - no private repository data, tokens, `.env` values, or source code in the demo.
 
+### Owner selection
+
+Atlas imports and displays one configured repository owner at a time. The self-hosted operator may configure a small allow-list of owners. Switching owner replaces the displayed portfolio; it never merges multiple people’s repositories into one map by default.
+
 ## 4. Core data model
 
 ### Repository metadata

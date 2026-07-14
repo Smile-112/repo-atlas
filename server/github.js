@@ -1,5 +1,10 @@
 const API_URL = "https://api.github.com";
 
+export function configuredOwners(value) {
+  if (!value) return [];
+  return [...new Set(value.split(",").map((owner) => owner.trim()).filter((owner) => /^[A-Za-z0-9-]{1,39}$/.test(owner)))];
+}
+
 export function normalizeRepository(repository) {
   const pushedAt = repository.pushed_at ? new Date(repository.pushed_at) : null;
   const ageInDays = pushedAt ? Math.floor((Date.now() - pushedAt.getTime()) / 86_400_000) : Number.POSITIVE_INFINITY;
