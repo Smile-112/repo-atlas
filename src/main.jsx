@@ -34,6 +34,8 @@ function App() {
   const [query, setQuery] = useState("");
   const [tagInput, setTagInput] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [githubOwner, setGithubOwner] = useState("");
+  const [importState, setImportState] = useState("");
   const [saveState, setSaveState] = useState(workspace.source === "local" ? "Restored from this browser" : "Demo workspace");
 
   useEffect(() => {
@@ -85,6 +87,26 @@ function App() {
     setPrompt("");
     setSaveState("Demo workspace restored");
   }
+  async function importGitHub() {
+    setImportState("Importing repositories…");
+    try {
+      const owner = githubOwner.trim();
+      const response = await fetch(`/api/github/repositories?owner=${encodeURIComponent(owner)}`);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Import failed.");
+      setRepositories((current) => {
+        const currentById = new Map(current.map((repository) => [repository.id, repository]));
+        return payload.repositories.map((repository) => {
+          const workspace = currentById.get(repository.id);
+          return workspace ? { ...repository, tags: [...new Set([...repository.tags, ...workspace.tags])], decision: workspace.decision, target: workspace.target, history: workspace.history } : repository;
+        });
+      });
+      setSelectedId(payload.repositories[0]?.id ?? initialRepositories[0].id);
+      setImportState(`Imported ${payload.repositories.length} repositories.`);
+    } catch (error) {
+      setImportState(error.message);
+    }
+  }
 
   return <main>
     <header className="hero">
@@ -95,7 +117,7 @@ function App() {
     <section className="metrics" aria-label="Portfolio summary"><Metric label="Repositories" value={repositories.length} hint="In this workspace" /><Metric label="Active" value={activeCount} hint="Updated or maintained" /><Metric label="Planned moves" value={mergeCount} hint="Reversible scenario decisions" tone="accent" /><Metric label="Target monorepos" value={targets.filter((target) => repositories.some((repo) => repo.target === target.id && repo.decision === "merge")).length} hint="Visible in proposed map" tone="blue" /></section>
 
     {mode === "current" ? <section className="workspace" id="catalog">
-      <aside className="filters"><div><p className="eyebrow">Workspace</p><h2>Current portfolio</h2></div><label>Search<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Repository, tag, stack" /></label><Filter label="Domain" value={domain} onChange={setDomain} values={domains} /><Filter label="Decision" value={decision} onChange={setDecision} values={actions} /><div className="principle"><strong>Safe by design</strong><p>Decisions are stored as a scenario. They do not modify GitHub.</p></div></aside>
+      <aside className="filters"><div><p className="eyebrow">Workspace</p><h2>Current portfolio</h2></div><div className="importer"><strong>Import GitHub</strong><p>Uses a server-side read-only token.</p><input value={githubOwner} onChange={(event) => setGithubOwner(event.target.value)} placeholder="Owner, e.g. Smile-112" /><button type="button" onClick={importGitHub}>Import repositories</button>{importState && <small>{importState}</small>}</div><label>Search<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Repository, tag, stack" /></label><Filter label="Domain" value={domain} onChange={setDomain} values={domains} /><Filter label="Decision" value={decision} onChange={setDecision} values={actions} /><div className="principle"><strong>Safe by design</strong><p>Decisions are stored as a scenario. They do not modify GitHub.</p></div></aside>
       <div className="content"><div className="section-title"><div><p className="eyebrow">Repository catalog</p><h2>{filtered.length} repositories in view</h2></div><span>Demo workspace</span></div><div className="repo-grid">{filtered.map((repo) => <RepositoryCard key={repo.id} repo={repo} selected={selected.id === repo.id} onClick={() => setSelectedId(repo.id)} />)}</div></div>
       <RepositoryDetail repo={selected} targets={targets} onUpdate={updateSelected} tagInput={tagInput} setTagInput={setTagInput} onAddTag={addTag} onRemoveTag={removeTag} />
     </section> : <ProposedMap repositories={repositories} targets={targets} onSelect={setSelectedId} onCurrent={() => setMode("current")} />}

@@ -158,7 +158,7 @@ Prompt templates: structural review, migration-plan review, and rollback-plan ex
 | 4 | Target monorepos, history strategy, proposed-map simulation | Done in browser state |
 | 5 | Copyable local AI-review prompt | Done |
 | 6 | Versioned local browser workspace store for tags and decisions | Done |
-| 7 | Read-only GitHub importer for one account | Planned |
+| 7 | Read-only GitHub importer for one account | Implemented; live-token verification pending |
 | 8 | Explainable scoring, rules editor, and recommendation evidence | Planned |
 | 9 | Current/proposed compare map and conflict detection | Planned |
 | 10 | Markdown/JSON report and migration manifest export | Planned |

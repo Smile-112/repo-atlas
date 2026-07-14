@@ -30,10 +30,22 @@ npm run build
 
 ```bash
 docker build -t repo-atlas .
-docker run --rm -p 8080:80 repo-atlas
+docker run --rm -p 8080:8080 repo-atlas
 ```
 
 Then open `http://localhost:8080`.
+
+### Importing GitHub repositories
+
+The importer is available only from the self-hosted server. Create a fine-grained GitHub token with **Metadata: Read-only** and **Contents: Read-only**, restrict it to the repositories you want to inspect, then run:
+
+```bash
+docker run --rm -p 8080:8080 \
+  -e GITHUB_TOKEN=github_pat_your_read_only_token \
+  repo-atlas
+```
+
+The token stays on the server and is never sent to the browser bundle, saved in the workspace, or included in AI-review prompts. Do not deploy this first self-hosted version directly to the public internet without an access-control layer.
 
 ## Roadmap
 

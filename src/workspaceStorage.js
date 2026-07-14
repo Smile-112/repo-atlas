@@ -1,4 +1,4 @@
-export const WORKSPACE_VERSION = 1;
+export const WORKSPACE_VERSION = 2;
 const STORAGE_KEY = `repo-atlas.workspace.v${WORKSPACE_VERSION}`;
 const decisions = new Set(["keep", "merge", "archive"]);
 const histories = new Set(["full", "squash"]);
@@ -18,18 +18,14 @@ export function loadWorkspace(initialRepositories) {
       return { repositories: initialRepositories, source: "incompatible" };
     }
 
-    const saved = new Map(parsed.repositories.map((repository) => [repository.id, repository]));
-    const repositories = initialRepositories.map((repository) => {
-      const workspace = saved.get(repository.id);
-      if (!workspace) return repository;
-      return {
-        ...repository,
-        tags: validTags(workspace.tags),
-        decision: decisions.has(workspace.decision) ? workspace.decision : repository.decision,
-        target: typeof workspace.target === "string" ? workspace.target : null,
-        history: histories.has(workspace.history) ? workspace.history : repository.history
-      };
-    });
+    const repositories = parsed.repositories.map((repository) => ({
+      ...repository,
+      tags: validTags(repository.tags),
+      decision: decisions.has(repository.decision) ? repository.decision : "keep",
+      target: typeof repository.target === "string" ? repository.target : null,
+      history: histories.has(repository.history) ? repository.history : "full"
+    })).filter((repository) => typeof repository.id === "string" && typeof repository.description === "string");
+    if (!repositories.length) return { repositories: initialRepositories, source: "incompatible" };
     return { repositories, source: "local" };
   } catch {
     return { repositories: initialRepositories, source: "recovered" };
@@ -40,7 +36,7 @@ export function saveWorkspace(repositories) {
   const workspace = {
     version: WORKSPACE_VERSION,
     updatedAt: new Date().toISOString(),
-    repositories: repositories.map(({ id, tags, decision, target, history }) => ({ id, tags, decision, target, history }))
+    repositories
   };
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
 }
