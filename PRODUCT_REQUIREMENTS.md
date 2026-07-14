@@ -157,19 +157,20 @@ Prompt templates: structural review, migration-plan review, and rollback-plan ex
 | 3 | Custom tags and built-in decisions | Done in browser state |
 | 4 | Target monorepos, history strategy, proposed-map simulation | Done in browser state |
 | 5 | Copyable local AI-review prompt | Done |
-| 6 | Persistent local workspace store | Planned |
+| 6 | Versioned local browser workspace store for tags and decisions | Done |
 | 7 | Read-only GitHub importer for one account | Planned |
 | 8 | Explainable scoring, rules editor, and recommendation evidence | Planned |
 | 9 | Current/proposed compare map and conflict detection | Planned |
 | 10 | Markdown/JSON report and migration manifest export | Planned |
 | 11 | GitLab and local Git adapters | Planned |
 | 12 | GitHub App authentication and team features | Future |
+| 13 | Separate UI/UX acceptance checks and browser interaction regression tests | Planned |
 
 ## 11. Current implementation notes
 
-The current public demo intentionally uses synthetic data. Tags, decisions, history strategies, and generated prompts live only in browser memory and reset after a page refresh. This is deliberate until the local persistence schema is designed and implemented.
+The current public demo intentionally uses synthetic data. Tags, decisions, targets, and history strategies are stored locally in the browser using the versioned `repo-atlas.workspace.v1` schema. They never leave the browser and can be reset to the demo workspace. Generated prompts still live only in memory and reset after a page refresh.
 
-The next implementation milestone is a versioned local workspace store, followed by a fine-grained read-only GitHub importer.
+The next implementation milestone is a fine-grained read-only GitHub importer.
 
 ## 12. Definition of done for the first usable release
 

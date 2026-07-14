@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+import { clearWorkspace, loadWorkspace, saveWorkspace } from "./workspaceStorage";
 
 const targets = [
   { id: "minecraft-addons", name: "minecraft-addons", description: "Mods, plugins and server tooling", strategy: "Full Git history" },
@@ -24,7 +25,8 @@ const actions = ["all", "keep", "merge", "archive"];
 const decisionText = { keep: "Keep separate", merge: "Move to monorepo", archive: "Archive" };
 
 function App() {
-  const [repositories, setRepositories] = useState(initialRepositories);
+  const [workspace] = useState(() => loadWorkspace(initialRepositories));
+  const [repositories, setRepositories] = useState(workspace.repositories);
   const [selectedId, setSelectedId] = useState(initialRepositories[1].id);
   const [mode, setMode] = useState("current");
   const [domain, setDomain] = useState("all");
@@ -32,6 +34,16 @@ function App() {
   const [query, setQuery] = useState("");
   const [tagInput, setTagInput] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [saveState, setSaveState] = useState(workspace.source === "local" ? "Restored from this browser" : "Demo workspace");
+
+  useEffect(() => {
+    try {
+      saveWorkspace(repositories);
+      setSaveState("Saved in this browser");
+    } catch {
+      setSaveState("Could not save locally");
+    }
+  }, [repositories]);
 
   const selected = repositories.find((repo) => repo.id === selectedId) ?? repositories[0];
   const domains = ["all", ...new Set(repositories.map((repo) => repo.domain))];
@@ -66,11 +78,18 @@ function App() {
     if (!prompt) makePrompt();
     if (navigator.clipboard && prompt) await navigator.clipboard.writeText(prompt);
   }
+  function resetWorkspace() {
+    clearWorkspace();
+    setRepositories(initialRepositories);
+    setSelectedId(initialRepositories[1].id);
+    setPrompt("");
+    setSaveState("Demo workspace restored");
+  }
 
   return <main>
     <header className="hero">
       <div><p className="eyebrow">Repository intelligence, locally owned</p><h1>Repo Atlas</h1><p className="lede">Explore today’s repositories, model a safer tomorrow, then export a reviewable migration plan.</p></div>
-      <div className="mode-switch" aria-label="Atlas mode"><button className={mode === "current" ? "active" : ""} onClick={() => setMode("current")}>Current map</button><button className={mode === "proposed" ? "active" : ""} onClick={() => setMode("proposed")}>Proposed map</button></div>
+      <div className="hero-controls"><div className="mode-switch" aria-label="Atlas mode"><button className={mode === "current" ? "active" : ""} onClick={() => setMode("current")}>Current map</button><button className={mode === "proposed" ? "active" : ""} onClick={() => setMode("proposed")}>Proposed map</button></div><span className="workspace-status">● {saveState}</span><button className="reset" onClick={resetWorkspace}>Reset demo</button></div>
     </header>
 
     <section className="metrics" aria-label="Portfolio summary"><Metric label="Repositories" value={repositories.length} hint="In this workspace" /><Metric label="Active" value={activeCount} hint="Updated or maintained" /><Metric label="Planned moves" value={mergeCount} hint="Reversible scenario decisions" tone="accent" /><Metric label="Target monorepos" value={targets.filter((target) => repositories.some((repo) => repo.target === target.id && repo.decision === "merge")).length} hint="Visible in proposed map" tone="blue" /></section>
