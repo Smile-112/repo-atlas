@@ -163,7 +163,7 @@ Prompt templates: structural review, migration-plan review, and rollback-plan ex
 | 5 | Copyable local AI-review prompt | Done |
 | 6 | Versioned local browser workspace store for tags and decisions | Done |
 | 7 | Read-only GitHub importer for one account | Implemented; live-token verification pending |
-| 8 | Explainable scoring, rules editor, and recommendation evidence | Planned |
+| 8 | Explainable scoring, rules editor, and recommendation evidence | Implemented for built-in target profiles |
 | 9 | Current/proposed compare map and conflict detection | Planned |
 | 10 | Markdown/JSON report and migration manifest export | Planned |
 | 11 | GitLab and local Git adapters | Planned |
@@ -180,6 +180,8 @@ The current public demo intentionally uses synthetic data. Tags, decisions, targ
 The next implementation milestone is a fine-grained read-only GitHub importer.
 
 Repository descriptions are imported from GitHub and technology classification combines the GitHub Languages endpoint with recognised technology topics. Deeper dependency and manifest analysis is a later enhancement.
+
+The first recommendation engine is deterministic. It scores matching domain, recognised tags, technology stack, repository size, and lifecycle against built-in target-monorepo profiles. Tags such as `client`, `fork`, and `keep-separate` are hard stop-factors. The user can change the merge-confidence threshold and must explicitly adopt a recommendation before the scenario changes.
 
 ## 12. Definition of done for the first usable release
 
