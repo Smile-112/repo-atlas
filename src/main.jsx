@@ -51,6 +51,7 @@ function App() {
   const [githubOwner, setGithubOwner] = useState("");
   const [githubOwners, setGithubOwners] = useState([]);
   const [importState, setImportState] = useState("");
+  const [importedCount, setImportedCount] = useState(null);
   const [saveState, setSaveState] = useState(workspace.source === "local" ? "Restored from this browser" : "Demo workspace");
   const [rules, setRules] = useState(DEFAULT_RULES);
   const [theme, setTheme] = useState(() => window.localStorage.getItem("repo-atlas.theme") ?? "atlas");
@@ -148,6 +149,7 @@ function App() {
         });
       });
       setSelectedId(payload.repositories[0]?.id ?? initialRepositories[0].id);
+      setImportedCount(payload.repositories.length);
       setImportState(`Imported ${payload.repositories.length} repositories.`);
     } catch (error) {
       setImportState(error.message);
@@ -162,6 +164,7 @@ function App() {
       if (!payload.repositories.length) throw new Error("No readable local Git repositories were found.");
       setRepositories(payload.repositories);
       setSelectedId(payload.repositories[0]?.id ?? initialRepositories[0].id);
+      setImportedCount(payload.repositories.length);
       setImportState(`Imported ${payload.repositories.length} local repositories.`);
     } catch (error) {
       setImportState(error.message);
@@ -176,6 +179,7 @@ function App() {
       if (!payload.repositories.length) throw new Error("GitLab returned no accessible repositories.");
       setRepositories(payload.repositories);
       setSelectedId(payload.repositories[0]?.id ?? initialRepositories[0].id);
+      setImportedCount(payload.repositories.length);
       setImportState(`Imported ${payload.repositories.length} GitLab repositories.`);
     } catch (error) {
       setImportState(error.message);
