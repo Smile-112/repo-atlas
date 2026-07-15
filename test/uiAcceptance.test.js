@@ -13,6 +13,9 @@ test("workspace keeps one owner visible and exposes safe export actions", () => 
   assert.match(application, /Download Markdown/);
   assert.match(application, /Import local Git/);
   assert.match(application, /Import GitLab/);
+  assert.match(application, /option value="claude"/);
+  assert.match(application, /option value="elevenlabs"/);
+  assert.match(application, /option value="ollama"/);
   assert.doesNotMatch(application, /VITE_GITHUB_TOKEN/);
 });
 
