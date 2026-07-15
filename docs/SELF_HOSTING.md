@@ -61,6 +61,15 @@ services:
 LOCAL_GIT_PATHS=/repositories/project-one
 ```
 
+## Optional GitLab import
+
+Create a GitLab personal access token with the `read_api` scope, then set it on the server only. The optional `GITLAB_URL` supports self-hosted GitLab instances.
+
+```dotenv
+GITLAB_TOKEN=glpat_<replace-with-your-full-token>
+GITLAB_URL=https://gitlab.com
+```
+
 ## Container logs
 
 Repo Atlas writes newline-delimited JSON logs to the container output. They cover startup, completed HTTP requests, GitHub import lifecycle, rejected requests, and unexpected server errors. Token values and authentication headers are never logged.

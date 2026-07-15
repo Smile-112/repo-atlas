@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { configuredOwners, fetchOwnedRepositories } from "./github.js";
 import { configuredLocalPaths, fetchLocalRepositories } from "./localGit.js";
+import { fetchGitLabProjects, gitlabBaseUrl } from "./gitlab.js";
 import { logger } from "./logger.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -42,6 +43,20 @@ app.get("/api/local/repositories", async (_request, response) => {
   } catch (error) {
     logger.error("local_git_import_failed", { message: error.message });
     return response.status(502).json({ error: "Local Git import failed. Check configured paths and container mounts." });
+  }
+});
+
+app.get("/api/gitlab/repositories", async (_request, response) => {
+  const token = process.env.GITLAB_TOKEN;
+  if (!token) return response.status(503).json({ error: "GitLab importer is not configured. Set GITLAB_TOKEN on the server." });
+  try {
+    logger.info("gitlab_import_started", { baseUrl: gitlabBaseUrl(process.env.GITLAB_URL) });
+    const repositories = await fetchGitLabProjects({ token, baseUrl: process.env.GITLAB_URL });
+    logger.info("gitlab_import_completed", { repositoryCount: repositories.length });
+    return response.json({ repositories, importedAt: new Date().toISOString() });
+  } catch (error) {
+    logger.error("gitlab_import_failed", { gitlabStatus: error.status ?? null, message: error.message });
+    return response.status(502).json({ error: "GitLab import failed. Check the server token and URL." });
   }
 });
 
