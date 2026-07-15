@@ -4,6 +4,7 @@ import "./styles.css";
 import { clearWorkspace, loadWorkspace, saveWorkspace } from "./workspaceStorage";
 import { analyseRepository, DEFAULT_RULES } from "./analysis";
 import { compareScenario } from "./compare";
+import { buildMigrationManifest, manifestToMarkdown } from "./migrationPlan";
 
 const targets = [
   { id: "minecraft-addons", name: "minecraft-addons", description: "Mods, plugins and server tooling", strategy: "Full Git history" },
@@ -74,6 +75,16 @@ function App() {
   const activeCount = repositories.filter((repo) => repo.status === "Active").length;
   const analysis = analyseRepository(selected, targets, rules);
   const comparison = compareScenario(repositories, targets, rules);
+  const migrationManifest = useMemo(() => buildMigrationManifest(repositories, targets), [repositories]);
+
+  function download(filename, contents, type) {
+    const url = URL.createObjectURL(new Blob([contents], { type }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   function updateSelected(patch) {
     setRepositories((items) => items.map((repo) => repo.id === selected.id ? { ...repo, ...patch } : repo));
@@ -140,9 +151,9 @@ function App() {
       <RepositoryDetail repo={selected} targets={targets} analysis={analysis} onUpdate={updateSelected} tagInput={tagInput} setTagInput={setTagInput} onAddTag={addTag} onRemoveTag={removeTag} />
     </section> : mode === "proposed" ? <ProposedMap repositories={repositories} targets={targets} onSelect={setSelectedId} onCurrent={() => setMode("current")} /> : <CompareView comparison={comparison} targets={targets} onCurrent={() => setMode("current")} />}
 
-    <section className="review-panel"><div><p className="eyebrow">External review, optional</p><h2>Generate an AI review prompt</h2><p>Atlas does not call a model or send data anywhere. It produces a copyable prompt from the active scenario; tokens and repository contents are never included.</p></div><div className="review-actions"><button className="primary" onClick={makePrompt}>Generate prompt</button>{prompt && <button className="secondary" onClick={copyPrompt}>Copy prompt</button>}</div>{prompt && <textarea className="prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} aria-label="Generated AI review prompt" />}</section>
+    <section className="review-panel"><div><p className="eyebrow">External review, optional</p><h2>Export the migration plan</h2><p>Download a JSON manifest and Markdown plan for human review. The files never contain tokens or repository contents, and they never execute Git operations.</p></div><div className="review-actions"><button className="primary" onClick={() => download("repo-atlas-migration-manifest.json", JSON.stringify(migrationManifest, null, 2), "application/json")}>Download manifest</button><button className="secondary" onClick={() => download("repo-atlas-migration-plan.md", manifestToMarkdown(migrationManifest), "text/markdown")}>Download Markdown</button><button className="secondary" onClick={makePrompt}>Generate AI prompt</button>{prompt && <button className="secondary" onClick={copyPrompt}>Copy prompt</button>}</div>{prompt && <textarea className="prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} aria-label="Generated AI review prompt" />}</section>
 
-    <section className="safety"><div><p className="eyebrow">Migration safety</p><h2>History is a decision, not an afterthought</h2></div><ol><li><b>Scenario first</b><span>Accept, edit, or discard recommendations without touching a repository.</span></li><li><b>Recorded strategy</b><span>Each move explicitly uses full history or a squashed import.</span></li><li><b>Manifest later</b><span>The future exporter records source SHA, branch, target path, and verification status.</span></li><li><b>Human execution</b><span>Atlas prepares commands and rollback checks; it does not run destructive Git actions.</span></li></ol></section>
+    <section className="safety"><div><p className="eyebrow">Migration safety</p><h2>History is a decision, not an afterthought</h2></div><ol><li><b>Scenario first</b><span>Accept, edit, or discard recommendations without touching a repository.</span></li><li><b>Recorded strategy</b><span>Each move explicitly uses full history or a squashed import.</span></li><li><b>Exact state</b><span>Imports include the source branch and commit SHA when GitHub metadata is available.</span></li><li><b>Human execution</b><span>Atlas exports a review plan; it never runs destructive Git actions.</span></li></ol></section>
   </main>;
 }
 

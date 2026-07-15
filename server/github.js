@@ -17,7 +17,7 @@ export function classifyTechnologies(repository, languages = {}) {
   return [...detected].sort((left, right) => left.localeCompare(right));
 }
 
-export function normalizeRepository(repository, languages = {}) {
+export function normalizeRepository(repository, languages = {}, headSha = null) {
   const pushedAt = repository.pushed_at ? new Date(repository.pushed_at) : null;
   const ageInDays = pushedAt ? Math.floor((Date.now() - pushedAt.getTime()) / 86_400_000) : Number.POSITIVE_INFINITY;
   const status = repository.archived ? "Archived" : ageInDays < 365 ? "Active" : "Maintenance";
@@ -43,6 +43,7 @@ export function normalizeRepository(repository, languages = {}) {
     visibility: repository.private ? "private" : "public",
     archived: Boolean(repository.archived),
     defaultBranch: repository.default_branch ?? "main",
+    headSha,
     fork: Boolean(repository.fork),
     license: repository.license?.spdx_id ?? null
   };
@@ -59,6 +60,16 @@ async function fetchRepositoryLanguages({ token, languagesUrl, fetchImpl }) {
     }
   });
   return response.ok ? response.json() : {};
+}
+
+async function fetchDefaultBranchSha({ token, repository, fetchImpl }) {
+  if (!repository.full_name || !repository.default_branch) return null;
+  const response = await fetchImpl(`${API_URL}/repos/${repository.full_name}/git/ref/heads/${encodeURIComponent(repository.default_branch)}`, {
+    headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${token}`, "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "repo-atlas" }
+  });
+  if (!response.ok) return null;
+  const reference = await response.json();
+  return reference.object?.sha ?? null;
 }
 
 async function mapWithConcurrency(items, limit, mapper) {
@@ -98,8 +109,11 @@ export async function fetchOwnedRepositories({ token, owner, fetchImpl = fetch }
     const owned = pageItems.filter((repository) => !owner || repository.owner?.login?.toLowerCase() === owner.toLowerCase());
     const normalized = await mapWithConcurrency(owned, 5, async (repository) => {
       try {
-        const languages = await fetchRepositoryLanguages({ token, languagesUrl: repository.languages_url, fetchImpl });
-        return normalizeRepository(repository, languages);
+        const [languages, headSha] = await Promise.all([
+          fetchRepositoryLanguages({ token, languagesUrl: repository.languages_url, fetchImpl }),
+          fetchDefaultBranchSha({ token, repository, fetchImpl })
+        ]);
+        return normalizeRepository(repository, languages, headSha);
       } catch {
         return normalizeRepository(repository);
       }

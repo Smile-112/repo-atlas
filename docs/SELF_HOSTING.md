@@ -43,6 +43,8 @@ docker compose ps
 
 Open `http://127.0.0.1:8080`. In the **Import GitHub** panel, select one configured owner and import that portfolio. Switching owner replaces the current displayed dataset rather than mixing repositories from several people.
 
+The **Export the migration plan** panel downloads a Markdown review plan and a JSON manifest. Imported repositories record their default branch and current branch SHA when GitHub provides it. Atlas never executes the plan: review the metadata and run any Git migration manually.
+
 ## Container logs
 
 Repo Atlas writes newline-delimited JSON logs to the container output. They cover startup, completed HTTP requests, GitHub import lifecycle, rejected requests, and unexpected server errors. Token values and authentication headers are never logged.
