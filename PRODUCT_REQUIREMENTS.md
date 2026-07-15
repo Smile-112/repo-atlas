@@ -171,7 +171,7 @@ Prompt templates: structural review, migration-plan review, and rollback-plan ex
 | 12 | GitHub App authentication and team features | Future |
 | 13 | Separate UI/UX acceptance checks and browser interaction regression tests | Baseline acceptance suite and manual browser checklist implemented; automated browser interaction runner remains planned |
 | 14 | User-selectable visual themes | Implemented: Atlas, Claude, ElevenLabs, and Ollama themes |
-| 15 | Russian and English UI localisation with a language switcher (AI-review prompt remains intentionally untranslated) | Started: persisted language switcher and navigation translation implemented |
+| 15 | Russian and English UI localisation with a language switcher (AI-review prompt remains intentionally untranslated) | Implemented; language selection persists locally and the AI-review prompt remains English |
 | 16 | Adaptive-layout review for narrow and touch screens | Future |
 
 ## 11. Current implementation notes
