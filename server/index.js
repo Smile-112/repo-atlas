@@ -8,9 +8,19 @@ import { logger } from "./logger.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const port = Number(process.env.PORT ?? 8080);
+const requestedPort = Number(process.env.PORT ?? 8080);
+const port = Number.isInteger(requestedPort) && requestedPort > 0 && requestedPort <= 65_535 ? requestedPort : 8080;
 
 app.disable("x-powered-by");
+app.use((_request, response, next) => {
+  response.set({
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    "Referrer-Policy": "same-origin",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY"
+  });
+  next();
+});
 app.use(express.json({ limit: "32kb" }));
 app.use((request, response, next) => {
   const startedAt = process.hrtime.bigint();
@@ -27,7 +37,13 @@ app.use((request, response, next) => {
 });
 
 app.get("/api/health", (_request, response) => {
-  response.json({ ok: true, githubConfigured: Boolean(process.env.GITHUB_TOKEN), owners: configuredOwners(process.env.GITHUB_OWNERS) });
+  response.json({
+    ok: true,
+    githubConfigured: Boolean(process.env.GITHUB_TOKEN),
+    gitlabConfigured: Boolean(process.env.GITLAB_TOKEN),
+    localGitConfigured: configuredLocalPaths(process.env.LOCAL_GIT_PATHS).length > 0,
+    owners: configuredOwners(process.env.GITHUB_OWNERS)
+  });
 });
 
 app.get("/api/github/owners", (_request, response) => response.json({ owners: configuredOwners(process.env.GITHUB_OWNERS) }));
@@ -69,7 +85,7 @@ app.get("/api/github/repositories", async (request, response) => {
   }
 
   const owner = typeof request.query.owner === "string" ? request.query.owner.trim() : "";
-  if (owner.length > 39 || !/^[A-Za-z0-9-]*$/.test(owner)) {
+  if (!owner || owner.length > 39 || !/^[A-Za-z0-9-]+$/.test(owner)) {
     logger.warn("github_import_rejected", { owner, reason: "invalid_owner" });
     response.status(400).json({ error: "Owner must be a valid GitHub login." });
     return;
@@ -83,13 +99,13 @@ app.get("/api/github/repositories", async (request, response) => {
 
   try {
     const startedAt = process.hrtime.bigint();
-    logger.info("github_import_started", { owner: owner || "all_owned_repositories" });
+    logger.info("github_import_started", { owner });
     const repositories = await fetchOwnedRepositories({ token, owner });
     const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
-    logger.info("github_import_completed", { owner: owner || "all_owned_repositories", repositoryCount: repositories.length, durationMs: Number(durationMs.toFixed(1)) });
+    logger.info("github_import_completed", { owner, repositoryCount: repositories.length, durationMs: Number(durationMs.toFixed(1)) });
     response.json({ repositories, importedAt: new Date().toISOString() });
   } catch (error) {
-    logger.error("github_import_failed", { owner: owner || "all_owned_repositories", githubStatus: error.status ?? null, message: error.message });
+    logger.error("github_import_failed", { owner, githubStatus: error.status ?? null, message: error.message });
     response.status(502).json({ error: "GitHub import failed. Check the server token scope and try again." });
   }
 });

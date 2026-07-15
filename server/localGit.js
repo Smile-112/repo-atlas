@@ -11,6 +11,8 @@ export function configuredLocalPaths(value) {
 
 export function safeRemoteUrl(value) {
   if (!value) return null;
+  const scpLike = value.match(/^[^@\s]+@([^:\s]+):(.+)$/);
+  if (scpLike) return `https://${scpLike[1]}/${scpLike[2]}`;
   try {
     const url = new URL(value);
     url.username = "";

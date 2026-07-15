@@ -41,6 +41,8 @@ docker compose up -d --build
 docker compose ps
 ```
 
+After the startup grace period, `docker compose ps` should report the container as `healthy`. The runtime process runs as the unprivileged `node` user, and `.dockerignore` keeps `.env` and Git metadata out of the image build context.
+
 Open `http://127.0.0.1:8080`. In the **Import GitHub** panel, select one configured owner and import that portfolio. Switching owner replaces the current displayed dataset rather than mixing repositories from several people.
 
 The **Export the migration plan** panel downloads a Markdown review plan and a JSON manifest. Imported repositories record their default branch and current branch SHA when GitHub provides it. Atlas never executes the plan: review the metadata and run any Git migration manually.

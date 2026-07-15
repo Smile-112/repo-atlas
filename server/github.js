@@ -90,7 +90,7 @@ export async function fetchOwnedRepositories({ token, owner, fetchImpl = fetch }
   let page = 1;
 
   while (page <= 10) {
-    const response = await fetchImpl(`${API_URL}/user/repos?affiliation=owner&per_page=100&sort=updated&direction=desc&page=${page}`, {
+    const response = await fetchImpl(`${API_URL}/user/repos?affiliation=owner,organization_member&per_page=100&sort=updated&direction=desc&page=${page}`, {
       headers: {
         Accept: "application/vnd.github+json",
         Authorization: `Bearer ${token}`,
@@ -108,15 +108,15 @@ export async function fetchOwnedRepositories({ token, owner, fetchImpl = fetch }
     const pageItems = await response.json();
     const owned = pageItems.filter((repository) => !owner || repository.owner?.login?.toLowerCase() === owner.toLowerCase());
     const normalized = await mapWithConcurrency(owned, 5, async (repository) => {
-      try {
-        const [languages, headSha] = await Promise.all([
-          fetchRepositoryLanguages({ token, languagesUrl: repository.languages_url, fetchImpl }),
-          fetchDefaultBranchSha({ token, repository, fetchImpl })
-        ]);
-        return normalizeRepository(repository, languages, headSha);
-      } catch {
-        return normalizeRepository(repository);
-      }
+      const [languagesResult, headShaResult] = await Promise.allSettled([
+        fetchRepositoryLanguages({ token, languagesUrl: repository.languages_url, fetchImpl }),
+        fetchDefaultBranchSha({ token, repository, fetchImpl })
+      ]);
+      return normalizeRepository(
+        repository,
+        languagesResult.status === "fulfilled" ? languagesResult.value : {},
+        headShaResult.status === "fulfilled" ? headShaResult.value : null
+      );
     });
     repositories.push(...normalized);
     if (pageItems.length < 100) break;

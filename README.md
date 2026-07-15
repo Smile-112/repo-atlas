@@ -11,7 +11,10 @@ Repo Atlas helps you understand the shape of a repository portfolio: what is act
 - current and proposed portfolio maps, based on a reversible scenario;
 - explicit Git-history strategy for every planned move;
 - optional copyable AI-review prompt — no LLM integration or data transfer;
-- Docker-ready static demo, containing no personal or private repository data.
+- read-only GitHub, GitLab, and explicitly mounted local Git importers;
+- deterministic migration manifest and Markdown-plan export;
+- four visual themes and English/Russian UI;
+- Docker-ready public demo data with no personal or private repository content.
 
 ## Run locally
 
@@ -51,10 +54,6 @@ For the complete token and Docker Compose setup, see [docs/SELF_HOSTING.md](docs
 
 ## Roadmap
 
-1. GitHub read-only importer for a single account.
-2. Persistent local workspace configuration for tags, status, relationships, and decisions.
-3. GitHub importer and explainable thematic/health rules.
-4. Consolidation-plan and migration-manifest export.
-5. GitLab and local Git adapters.
+Completed stages and future work are tracked in [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.md). The next larger milestones are automated browser interaction tests, adaptive-layout review, and — later — optional GitHub App authentication and team features.
 
 Read [ARCHITECTURE.md](ARCHITECTURE.md) for boundaries, planned layers, and the security model.

@@ -12,10 +12,11 @@
     "test:ui": "node --test test/uiAcceptance.test.js"
   },
   "dependencies": {
-    "express": "^5.1.0",
-    "vite": "latest",
-    "react": "latest",
-    "react-dom": "latest"
+    "express": "5.2.1"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "vite": "8.1.4"
+  }
 }

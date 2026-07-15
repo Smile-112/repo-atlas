@@ -6,6 +6,7 @@ import { analyseRepository, DEFAULT_RULES } from "./analysis";
 import { compareScenario } from "./compare";
 import { buildMigrationManifest, manifestToMarkdown } from "./migrationPlan";
 import { messages, observeLocalization } from "./i18n";
+import { mergeImportedRepositories } from "./importWorkspace";
 
 const targets = [
   { id: "minecraft-addons", name: "minecraft-addons", description: "Mods, plugins and server tooling", strategy: "Full Git history" },
@@ -27,6 +28,17 @@ const initialRepositories = [
 
 const actions = ["all", "keep", "merge", "archive"];
 const decisionText = { keep: "Keep separate", merge: "Move to monorepo", archive: "Archive" };
+const themes = new Set(["atlas", "claude", "elevenlabs", "ollama"]);
+const languages = new Set(["en", "ru"]);
+
+function loadPreference(key, allowed, fallback) {
+  try {
+    const value = window.localStorage.getItem(key);
+    return allowed.has(value) ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 function buildPrompt(repositories, targets) {
   const moves = repositories.filter((repo) => repo.decision === "merge");
@@ -51,18 +63,20 @@ function App() {
   const [githubOwner, setGithubOwner] = useState("");
   const [githubOwners, setGithubOwners] = useState([]);
   const [importState, setImportState] = useState("");
-  const [importedCount, setImportedCount] = useState(null);
   const [saveState, setSaveState] = useState(workspace.source === "local" ? "Restored from this browser" : "Demo workspace");
   const [rules, setRules] = useState(DEFAULT_RULES);
-  const [theme, setTheme] = useState(() => window.localStorage.getItem("repo-atlas.theme") ?? "atlas");
-  const [language, setLanguage] = useState(() => window.localStorage.getItem("repo-atlas.language") ?? "en");
+  const [theme, setTheme] = useState(() => loadPreference("repo-atlas.theme", themes, "atlas"));
+  const [language, setLanguage] = useState(() => loadPreference("repo-atlas.language", languages, "en"));
   const t = messages[language];
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    window.localStorage.setItem("repo-atlas.theme", theme);
+    try { window.localStorage.setItem("repo-atlas.theme", theme); } catch { /* The UI still works when storage is unavailable. */ }
   }, [theme]);
-  useEffect(() => { document.documentElement.lang = language; window.localStorage.setItem("repo-atlas.language", language); }, [language]);
+  useEffect(() => {
+    document.documentElement.lang = language;
+    try { window.localStorage.setItem("repo-atlas.language", language); } catch { /* The UI still works when storage is unavailable. */ }
+  }, [language]);
   useEffect(() => observeLocalization(language), [language]);
 
   useEffect(() => {
@@ -104,7 +118,9 @@ function App() {
     const link = document.createElement("a");
     link.href = url;
     link.download = filename;
+    document.body.append(link);
     link.click();
+    link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
@@ -130,6 +146,10 @@ function App() {
     clearWorkspace();
     setRepositories(initialRepositories);
     setSelectedId(initialRepositories[1].id);
+    setDomain("all");
+    setDecision("all");
+    setQuery("");
+    setImportState("");
     setPrompt("");
     setSaveState("Demo workspace restored");
   }
@@ -142,14 +162,9 @@ function App() {
       if (!response.ok) throw new Error(payload.error ?? "Import failed.");
       if (!payload.repositories.length) throw new Error("GitHub returned no repositories for this owner.");
       setRepositories((current) => {
-        const currentById = new Map(current.map((repository) => [repository.id, repository]));
-        return payload.repositories.map((repository) => {
-          const workspace = currentById.get(repository.id);
-          return workspace ? { ...repository, tags: [...new Set([...repository.tags, ...workspace.tags])], decision: workspace.decision, target: workspace.target, history: workspace.history } : repository;
-        });
+        return mergeImportedRepositories(current, payload.repositories);
       });
       setSelectedId(payload.repositories[0]?.id ?? initialRepositories[0].id);
-      setImportedCount(payload.repositories.length);
       setImportState(`Imported ${payload.repositories.length} repositories.`);
     } catch (error) {
       setImportState(error.message);
@@ -162,9 +177,8 @@ function App() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Local Git import failed.");
       if (!payload.repositories.length) throw new Error("No readable local Git repositories were found.");
-      setRepositories(payload.repositories);
+      setRepositories((current) => mergeImportedRepositories(current, payload.repositories));
       setSelectedId(payload.repositories[0]?.id ?? initialRepositories[0].id);
-      setImportedCount(payload.repositories.length);
       setImportState(`Imported ${payload.repositories.length} local repositories.`);
     } catch (error) {
       setImportState(error.message);
@@ -177,9 +191,8 @@ function App() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "GitLab import failed.");
       if (!payload.repositories.length) throw new Error("GitLab returned no accessible repositories.");
-      setRepositories(payload.repositories);
+      setRepositories((current) => mergeImportedRepositories(current, payload.repositories));
       setSelectedId(payload.repositories[0]?.id ?? initialRepositories[0].id);
-      setImportedCount(payload.repositories.length);
       setImportState(`Imported ${payload.repositories.length} GitLab repositories.`);
     } catch (error) {
       setImportState(error.message);
@@ -195,7 +208,7 @@ function App() {
     <section className="metrics" aria-label="Portfolio summary"><Metric label="Repositories" value={repositories.length} hint="In this workspace" /><Metric label="Active" value={activeCount} hint="Updated or maintained" /><Metric label="Planned moves" value={mergeCount} hint="Reversible scenario decisions" tone="accent" /><Metric label="Target monorepos" value={targets.filter((target) => repositories.some((repo) => repo.target === target.id && repo.decision === "merge")).length} hint="Visible in proposed map" tone="blue" /></section>
 
     {mode === "current" ? <section className="workspace" id="catalog">
-      <aside className="filters"><div><p className="eyebrow">Workspace</p><h2>Current portfolio</h2></div><div className="importer"><strong>Import GitHub</strong><p>One selected owner is displayed at a time.</p>{githubOwners.length ? <label>Repository owner<select value={githubOwner} onChange={(event) => setGithubOwner(event.target.value)}>{githubOwners.map((owner) => <option key={owner} value={owner}>{owner}</option>)}</select></label> : <input value={githubOwner} onChange={(event) => setGithubOwner(event.target.value)} placeholder="Owner, e.g. Smile-112" />}<button type="button" onClick={importGitHub}>Import repositories</button></div><div className="importer"><strong>Import GitLab</strong><p>Uses the server-side read-only API token.</p><button type="button" onClick={importGitLab}>Import GitLab repositories</button></div><div className="importer"><strong>Import local Git</strong><p>Reads only explicitly configured, read-only container mounts.</p><button type="button" onClick={importLocalGit}>Import local repositories</button>{importState && <small>{importState}</small>}</div><label>Search<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Repository, tag, stack" /></label><Filter label="Domain" value={domain} onChange={setDomain} values={domains} /><Filter label="Decision" value={decision} onChange={setDecision} values={actions} /><div className="rule-editor"><strong>Recommendation rules</strong><label>Merge threshold <output>{rules.mergeThreshold}%</output><input type="range" min="40" max="90" value={rules.mergeThreshold} onChange={(event) => setRules({ ...rules, mergeThreshold: Number(event.target.value) })} /></label><small>Hard stops: {rules.hardStopTags.map((tag) => `#${tag}`).join(", ")}</small></div><div className="principle"><strong>Safe by design</strong><p>Decisions are stored as a scenario. They do not modify GitHub.</p></div></aside>
+      <aside className="filters"><div><p className="eyebrow">Workspace</p><h2>Current portfolio</h2></div><div className="importer"><strong>Import GitHub</strong><p>One selected owner is displayed at a time.</p>{githubOwners.length ? <label>Repository owner<select value={githubOwner} onChange={(event) => setGithubOwner(event.target.value)}>{githubOwners.map((owner) => <option key={owner} value={owner}>{owner}</option>)}</select></label> : <input value={githubOwner} onChange={(event) => setGithubOwner(event.target.value)} placeholder="Owner, e.g. Smile-112" />}<button type="button" onClick={importGitHub}>Import repositories</button></div><div className="importer"><strong>Import GitLab</strong><p>Uses the server-side read-only API token.</p><button type="button" onClick={importGitLab}>Import GitLab repositories</button></div><div className="importer"><strong>Import local Git</strong><p>Reads only explicitly configured, read-only container mounts.</p><button type="button" onClick={importLocalGit}>Import local repositories</button></div>{importState && <p className="import-status" role="status">{importState}</p>}<label>Search<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Repository, tag, stack" /></label><Filter label="Domain" value={domain} onChange={setDomain} values={domains} /><Filter label="Decision" value={decision} onChange={setDecision} values={actions} /><div className="rule-editor"><strong>Recommendation rules</strong><label>Merge threshold <output>{rules.mergeThreshold}%</output><input type="range" min="40" max="90" value={rules.mergeThreshold} onChange={(event) => setRules({ ...rules, mergeThreshold: Number(event.target.value) })} /></label><small>Hard stops: {rules.hardStopTags.map((tag) => `#${tag}`).join(", ")}</small></div><div className="principle"><strong>Safe by design</strong><p>Decisions are stored as a scenario. They do not modify GitHub.</p></div></aside>
       <div className="content"><div className="section-title"><div><p className="eyebrow">Repository catalog</p><h2>{filtered.length} repositories in view</h2></div><span>Demo workspace</span></div><div className="repo-grid">{filtered.map((repo) => <RepositoryCard key={repo.id} repo={repo} selected={selected.id === repo.id} onClick={() => setSelectedId(repo.id)} />)}</div></div>
       <RepositoryDetail repo={selected} targets={targets} analysis={analysis} onUpdate={updateSelected} tagInput={tagInput} setTagInput={setTagInput} onAddTag={addTag} onRemoveTag={removeTag} />
     </section> : mode === "proposed" ? <ProposedMap repositories={repositories} targets={targets} onSelect={setSelectedId} onCurrent={() => setMode("current")} /> : <CompareView comparison={comparison} targets={targets} onCurrent={() => setMode("current")} />}

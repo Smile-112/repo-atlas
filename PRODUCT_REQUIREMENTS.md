@@ -113,7 +113,7 @@ Displays the result of the active scenario:
 - archive decisions remain visible and preserve original history/URLs;
 - the view is a simulation and cannot mutate provider state.
 
-### Compare view — planned
+### Compare view
 
 An overlay/diff between current and proposed maps: created targets, moved projects, unchanged projects, archives, and unresolved conflicts.
 
@@ -176,9 +176,9 @@ Prompt templates: structural review, migration-plan review, and rollback-plan ex
 
 ## 11. Current implementation notes
 
-The current public demo intentionally uses synthetic data. Tags, decisions, targets, and history strategies are stored locally in the browser using the versioned `repo-atlas.workspace.v1` schema. They never leave the browser and can be reset to the demo workspace. Generated prompts still live only in memory and reset after a page refresh.
+The current public demo intentionally uses synthetic data. Tags, decisions, targets, and history strategies are stored locally in the browser using the versioned `repo-atlas.workspace.v2` schema. They never leave the browser and can be reset to the demo workspace. Generated prompts still live only in memory and reset after a page refresh.
 
-The next implementation milestone is a fine-grained read-only GitHub importer.
+Self-hosted deployments provide read-only GitHub, GitLab, and explicitly configured local Git importers. Live-token verification remains deferred; the import adapters are covered by mocked API and normalization tests.
 
 Repository descriptions are imported from GitHub and technology classification combines the GitHub Languages endpoint with recognised technology topics. Deeper dependency and manifest analysis is a later enhancement.
 

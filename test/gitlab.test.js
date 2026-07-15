@@ -8,8 +8,14 @@ test("normalizes a GitLab project", () => {
 });
 
 test("imports GitLab projects without returning the token", async () => {
-  const fetchImpl = async (url) => url.includes("/languages") ? { ok: true, json: async () => ({ Python: 100 }) } : { ok: true, json: async () => [{ id: 1, path_with_namespace: "group/project", web_url: "https://gitlab.com/group/project", last_activity_at: new Date().toISOString() }] };
+  const fetchImpl = async (url) => url.includes("/languages")
+    ? { ok: true, json: async () => ({ Python: 100 }) }
+    : url.includes("/repository/branches/")
+      ? { ok: true, json: async () => ({ commit: { id: "deadbeef" } }) }
+      : { ok: true, json: async () => [{ id: 1, path_with_namespace: "group/project", web_url: "https://gitlab.com/group/project", default_branch: "main", last_activity_at: new Date().toISOString() }] };
   const projects = await fetchGitLabProjects({ token: "hidden", fetchImpl });
   assert.equal(projects.length, 1); assert.equal("token" in projects[0], false);
+  assert.equal(projects[0].headSha, "deadbeef");
   assert.equal(gitlabBaseUrl("not a url"), "https://gitlab.com");
+  assert.equal(gitlabBaseUrl("file:///etc/passwd"), "https://gitlab.com");
 });

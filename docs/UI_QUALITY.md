@@ -8,7 +8,7 @@ Run it with:
 npm run test:ui
 ```
 
-It verifies that the UI keeps one owner visible at a time, exposes both safe exports, does not contain a client-side GitHub token variable, and retains narrow-layout breakpoints.
+It verifies that the UI keeps one owner visible at a time, exposes both safe exports, does not contain a client-side GitHub token variable, retains narrow-layout breakpoints, and keeps dynamic imported repository counts independent from localisation.
 
 ## Manual browser checklist
 
