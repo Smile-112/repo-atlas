@@ -43,6 +43,16 @@ docker compose ps
 
 Open `http://127.0.0.1:8080`. In the **Import GitHub** panel, select one configured owner and import that portfolio. Switching owner replaces the current displayed dataset rather than mixing repositories from several people.
 
+## Container logs
+
+Repo Atlas writes newline-delimited JSON logs to the container output. They cover startup, completed HTTP requests, GitHub import lifecycle, rejected requests, and unexpected server errors. Token values and authentication headers are never logged.
+
+```bash
+docker compose logs -f --tail=100 repo-atlas
+```
+
+Compose uses Docker's `local` log driver and retains up to three 10 MB log files, so routine operation does not consume unlimited disk space.
+
 ## 4. Update and stop
 
 ```bash
