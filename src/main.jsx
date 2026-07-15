@@ -28,6 +28,16 @@ const initialRepositories = [
 const actions = ["all", "keep", "merge", "archive"];
 const decisionText = { keep: "Keep separate", merge: "Move to monorepo", archive: "Archive" };
 
+function buildPrompt(repositories, targets) {
+  const moves = repositories.filter((repo) => repo.decision === "merge");
+  const archives = repositories.filter((repo) => repo.decision === "archive");
+  const targetLines = targets.map((target) => {
+    const members = moves.filter((repo) => repo.target === target.id);
+    return members.length ? `- ${target.name} (${target.strategy}): ${members.map((repo) => repo.id).join(", ")}` : null;
+  }).filter(Boolean).join("\n");
+  return `You are a senior Git engineer. Review this repository consolidation plan.\n\nGoal\nKeep independent products separate; group related small projects into thematic monorepositories.\n\nProposed monorepos\n${targetLines || "- None"}\n\nArchives\n${archives.map((repo) => `- ${repo.id}`).join("\n") || "- None"}\n\nConstraints\n- Do not propose destructive commands without a safer alternative.\n- ${moves.some((repo) => repo.history === "full") ? "Preserve full Git history for items marked Full Git history." : "Use a documented import strategy."}\n- Original repositories are archived only after build and history verification.\n- Treat this as a review; do not execute changes.\n\nInspect likely path conflicts, CI implications, licensing, forks/upstreams, and rollback gaps. Ask concise questions where data is missing.`;
+}
+
 function App() {
   const [workspace] = useState(() => loadWorkspace(initialRepositories));
   const [repositories, setRepositories] = useState(workspace.repositories);
@@ -94,7 +104,7 @@ function App() {
     link.href = url;
     link.download = filename;
     link.click();
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   function updateSelected(patch) {
@@ -108,17 +118,12 @@ function App() {
   }
   function removeTag(tag) { updateSelected({ tags: selected.tags.filter((item) => item !== tag) }); }
   function makePrompt() {
-    const moves = repositories.filter((repo) => repo.decision === "merge");
-    const archives = repositories.filter((repo) => repo.decision === "archive");
-    const targetLines = targets.map((target) => {
-      const members = moves.filter((repo) => repo.target === target.id);
-      return members.length ? `- ${target.name} (${target.strategy}): ${members.map((repo) => repo.id).join(", ")}` : null;
-    }).filter(Boolean).join("\n");
-    setPrompt(`You are a senior Git engineer. Review this repository consolidation plan.\n\nGoal\nKeep independent products separate; group related small projects into thematic monorepositories.\n\nProposed monorepos\n${targetLines || "- None"}\n\nArchives\n${archives.map((repo) => `- ${repo.id}`).join("\n") || "- None"}\n\nConstraints\n- Do not propose destructive commands without a safer alternative.\n- ${moves.some((repo) => repo.history === "full") ? "Preserve full Git history for items marked Full Git history." : "Use a documented import strategy."}\n- Original repositories are archived only after build and history verification.\n- Treat this as a review; do not execute changes.\n\nInspect likely path conflicts, CI implications, licensing, forks/upstreams, and rollback gaps. Ask concise questions where data is missing.`);
+    setPrompt(buildPrompt(repositories, targets));
   }
   async function copyPrompt() {
-    if (!prompt) makePrompt();
-    if (navigator.clipboard && prompt) await navigator.clipboard.writeText(prompt);
+    const value = prompt || buildPrompt(repositories, targets);
+    if (!prompt) setPrompt(value);
+    if (navigator.clipboard) await navigator.clipboard.writeText(value);
   }
   function resetWorkspace() {
     clearWorkspace();
@@ -134,6 +139,7 @@ function App() {
       const response = await fetch(`/api/github/repositories?owner=${encodeURIComponent(owner)}`);
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Import failed.");
+      if (!payload.repositories.length) throw new Error("GitHub returned no repositories for this owner.");
       setRepositories((current) => {
         const currentById = new Map(current.map((repository) => [repository.id, repository]));
         return payload.repositories.map((repository) => {
@@ -153,6 +159,7 @@ function App() {
       const response = await fetch("/api/local/repositories");
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Local Git import failed.");
+      if (!payload.repositories.length) throw new Error("No readable local Git repositories were found.");
       setRepositories(payload.repositories);
       setSelectedId(payload.repositories[0]?.id ?? initialRepositories[0].id);
       setImportState(`Imported ${payload.repositories.length} local repositories.`);
@@ -166,6 +173,7 @@ function App() {
       const response = await fetch("/api/gitlab/repositories");
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "GitLab import failed.");
+      if (!payload.repositories.length) throw new Error("GitLab returned no accessible repositories.");
       setRepositories(payload.repositories);
       setSelectedId(payload.repositories[0]?.id ?? initialRepositories[0].id);
       setImportState(`Imported ${payload.repositories.length} GitLab repositories.`);
