@@ -165,7 +165,7 @@ Prompt templates: structural review, migration-plan review, and rollback-plan ex
 | 7 | Read-only GitHub importer for one account | Implemented; live-token verification pending |
 | 8 | Explainable scoring, rules editor, and recommendation evidence | Implemented for built-in target profiles |
 | 9 | Current/proposed compare map and conflict detection | Implemented for active scenario |
-| 10 | Markdown/JSON report and migration manifest export | Implemented; imported repositories include default-branch SHA when GitHub supplies it |
+| 10 | Markdown/JSON report and migration manifest export | Implemented; includes deterministic `git subtree` commands, safety branches, and human-reviewed rollback guidance |
 | 10a | Structured container logging for startup, runtime, imports, and errors | Implemented |
 | 11 | GitLab and local Git adapters | Planned |
 | 12 | GitHub App authentication and team features | Future |
