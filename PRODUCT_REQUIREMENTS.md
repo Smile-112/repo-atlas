@@ -169,7 +169,7 @@ Prompt templates: structural review, migration-plan review, and rollback-plan ex
 | 10a | Structured container logging for startup, runtime, imports, and errors | Implemented |
 | 11 | GitLab and local Git adapters | Planned |
 | 12 | GitHub App authentication and team features | Future |
-| 13 | Separate UI/UX acceptance checks and browser interaction regression tests | Planned |
+| 13 | Separate UI/UX acceptance checks and browser interaction regression tests | Baseline acceptance suite and manual browser checklist implemented; automated browser interaction runner remains planned |
 | 14 | User-selectable visual themes | Future |
 | 15 | Russian and English UI localisation with a language switcher (AI-review prompt remains intentionally untranslated) | Future |
 | 16 | Adaptive-layout review for narrow and touch screens | Future |

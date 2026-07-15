@@ -8,7 +8,8 @@
     "start": "node server/index.js",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test"
+    "test": "node --test",
+    "test:ui": "node --test test/uiAcceptance.test.js"
   },
   "dependencies": {
     "express": "^5.1.0",
