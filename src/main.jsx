@@ -5,7 +5,7 @@ import { clearWorkspace, loadWorkspace, saveWorkspace } from "./workspaceStorage
 import { analyseRepository, DEFAULT_RULES } from "./analysis";
 import { compareScenario } from "./compare";
 import { buildMigrationManifest, manifestToMarkdown } from "./migrationPlan";
-import { localizeRenderedText, messages } from "./i18n";
+import { messages, observeLocalization } from "./i18n";
 
 const targets = [
   { id: "minecraft-addons", name: "minecraft-addons", description: "Mods, plugins and server tooling", strategy: "Full Git history" },
@@ -63,7 +63,7 @@ function App() {
     window.localStorage.setItem("repo-atlas.theme", theme);
   }, [theme]);
   useEffect(() => { document.documentElement.lang = language; window.localStorage.setItem("repo-atlas.language", language); }, [language]);
-  useEffect(() => { localizeRenderedText(language); });
+  useEffect(() => observeLocalization(language), [language]);
 
   useEffect(() => {
     try {

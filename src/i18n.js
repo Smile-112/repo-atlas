@@ -16,10 +16,11 @@ const russian = new Map(Object.entries({
   "External review, optional": "Внешняя проверка, необязательно", "Export the migration plan": "Экспорт плана миграции", "Download a JSON manifest and Markdown plan for human review. The files never contain tokens or repository contents, and they never execute Git operations.": "Скачайте JSON-манифест и Markdown-план для проверки человеком. Файлы не содержат токенов или содержимого репозиториев и не выполняют Git-операции.", "Download manifest": "Скачать манифест", "Download Markdown": "Скачать Markdown", "Generate AI prompt": "Создать AI-промпт", "Copy prompt": "Скопировать промпт",
   "Migration safety": "Безопасность миграции", "History is a decision, not an afterthought": "История — это решение, а не деталь", "Scenario first": "Сначала сценарий", "Recorded strategy": "Зафиксированная стратегия", "Exact state": "Точное состояние", "Human execution": "Выполнение человеком",
   "Current → proposed": "Текущее → будущее", "Scenario diff": "Различия сценария", "Proposed repository map": "Будущая карта репозиториев", "Edit decisions": "Изменить решения", "Resolve decisions": "Разрешить решения", "No planned imports": "Нет запланированных импортов", "Independent": "Отдельные", "Preserve, don’t delete": "Сохранить, не удалять"
+  , "All": "Все", "Archived": "Архивный", "Maintenance": "Поддержка", "Complete": "Завершён", "Moves": "Переносы", "Archives": "Архивы", "Unchanged": "Без изменений", "Conflicts": "Конфликты", "Planned moves": "Запланированные переносы", "Blocking conflicts": "Блокирующие конфликты", "Decisions worth reviewing": "Решения для проверки", "No moves accepted yet.": "Пока нет принятых переносов.", "No archive decisions.": "Нет решений об архивировании.", "No planned imports": "Нет запланированных импортов", "Active": "Активный", "Reset demo": "Сбросить демо"
 }));
 
 const originals = new WeakMap();
-export function localizeRenderedText(language) {
+function localizeRenderedText(language) {
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   const nodes = [];
   while (walker.nextNode()) nodes.push(walker.currentNode);
@@ -27,6 +28,14 @@ export function localizeRenderedText(language) {
     if (node.parentElement?.closest("textarea, pre, code")) continue;
     const original = originals.get(node) ?? node.nodeValue;
     originals.set(node, original);
-    node.nodeValue = language === "ru" ? (russian.get(original.trim()) ? original.replace(original.trim(), russian.get(original.trim())) : original) : original;
+    const next = language === "ru" ? (russian.get(original.trim()) ? original.replace(original.trim(), russian.get(original.trim())) : original) : original;
+    if (node.nodeValue !== next) node.nodeValue = next;
   }
+}
+
+export function observeLocalization(language) {
+  localizeRenderedText(language);
+  const observer = new MutationObserver(() => localizeRenderedText(language));
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  return () => observer.disconnect();
 }
