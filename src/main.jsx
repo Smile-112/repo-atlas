@@ -5,6 +5,7 @@ import { clearWorkspace, loadWorkspace, saveWorkspace } from "./workspaceStorage
 import { analyseRepository, DEFAULT_RULES } from "./analysis";
 import { compareScenario } from "./compare";
 import { buildMigrationManifest, manifestToMarkdown } from "./migrationPlan";
+import { messages } from "./i18n";
 
 const targets = [
   { id: "minecraft-addons", name: "minecraft-addons", description: "Mods, plugins and server tooling", strategy: "Full Git history" },
@@ -43,11 +44,14 @@ function App() {
   const [saveState, setSaveState] = useState(workspace.source === "local" ? "Restored from this browser" : "Demo workspace");
   const [rules, setRules] = useState(DEFAULT_RULES);
   const [theme, setTheme] = useState(() => window.localStorage.getItem("repo-atlas.theme") ?? "atlas");
+  const [language, setLanguage] = useState(() => window.localStorage.getItem("repo-atlas.language") ?? "en");
+  const t = messages[language];
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem("repo-atlas.theme", theme);
   }, [theme]);
+  useEffect(() => { document.documentElement.lang = language; window.localStorage.setItem("repo-atlas.language", language); }, [language]);
 
   useEffect(() => {
     try {
@@ -172,7 +176,7 @@ function App() {
   return <main>
     <header className="hero">
       <div><p className="eyebrow">Repository intelligence, locally owned</p><h1>Repo Atlas</h1><p className="lede">Explore today’s repositories, model a safer tomorrow, then export a reviewable migration plan.</p></div>
-      <div className="hero-controls"><div className="mode-switch" aria-label="Atlas mode"><button className={mode === "current" ? "active" : ""} onClick={() => setMode("current")}>Current map</button><button className={mode === "proposed" ? "active" : ""} onClick={() => setMode("proposed")}>Proposed map</button><button className={mode === "compare" ? "active" : ""} onClick={() => setMode("compare")}>Compare</button></div><label className="appearance">Theme<select value={theme} onChange={(event) => setTheme(event.target.value)}><option value="atlas">Atlas</option><option value="claude">Claude</option><option value="elevenlabs">ElevenLabs</option><option value="ollama">Ollama</option></select></label><span className="workspace-status">● {saveState}</span><button className="reset" onClick={resetWorkspace}>Reset demo</button></div>
+      <div className="hero-controls"><div className="mode-switch" aria-label="Atlas mode"><button className={mode === "current" ? "active" : ""} onClick={() => setMode("current")}>{t.current}</button><button className={mode === "proposed" ? "active" : ""} onClick={() => setMode("proposed")}>{t.proposed}</button><button className={mode === "compare" ? "active" : ""} onClick={() => setMode("compare")}>{t.compare}</button></div><label className="appearance">{t.theme}<select value={theme} onChange={(event) => setTheme(event.target.value)}><option value="atlas">Atlas</option><option value="claude">Claude</option><option value="elevenlabs">ElevenLabs</option><option value="ollama">Ollama</option></select></label><label className="appearance">{t.language}<select value={language} onChange={(event) => setLanguage(event.target.value)}><option value="en">English</option><option value="ru">Русский</option></select></label><span className="workspace-status">● {saveState}</span><button className="reset" onClick={resetWorkspace}>{t.reset}</button></div>
     </header>
 
     <section className="metrics" aria-label="Portfolio summary"><Metric label="Repositories" value={repositories.length} hint="In this workspace" /><Metric label="Active" value={activeCount} hint="Updated or maintained" /><Metric label="Planned moves" value={mergeCount} hint="Reversible scenario decisions" tone="accent" /><Metric label="Target monorepos" value={targets.filter((target) => repositories.some((repo) => repo.target === target.id && repo.decision === "merge")).length} hint="Visible in proposed map" tone="blue" /></section>
