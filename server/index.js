@@ -2,6 +2,7 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { configuredOwners, fetchOwnedRepositories } from "./github.js";
+import { configuredLocalPaths, fetchLocalRepositories } from "./localGit.js";
 import { logger } from "./logger.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -29,6 +30,20 @@ app.get("/api/health", (_request, response) => {
 });
 
 app.get("/api/github/owners", (_request, response) => response.json({ owners: configuredOwners(process.env.GITHUB_OWNERS) }));
+
+app.get("/api/local/repositories", async (_request, response) => {
+  const paths = configuredLocalPaths(process.env.LOCAL_GIT_PATHS);
+  if (!paths.length) return response.status(503).json({ error: "Local Git importer is not configured. Set LOCAL_GIT_PATHS on the server." });
+  try {
+    logger.info("local_git_import_started", { repositoryCount: paths.length });
+    const repositories = await fetchLocalRepositories(paths);
+    logger.info("local_git_import_completed", { repositoryCount: repositories.length });
+    return response.json({ repositories, importedAt: new Date().toISOString() });
+  } catch (error) {
+    logger.error("local_git_import_failed", { message: error.message });
+    return response.status(502).json({ error: "Local Git import failed. Check configured paths and container mounts." });
+  }
+});
 
 app.get("/api/github/repositories", async (request, response) => {
   const token = process.env.GITHUB_TOKEN;

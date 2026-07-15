@@ -45,6 +45,22 @@ Open `http://127.0.0.1:8080`. In the **Import GitHub** panel, select one configu
 
 The **Export the migration plan** panel downloads a Markdown review plan and a JSON manifest. Imported repositories record their default branch and current branch SHA when GitHub provides it. Atlas never executes the plan: review the metadata and run any Git migration manually.
 
+## Optional local Git import
+
+Mount only the repositories you want Atlas to inspect as read-only volumes, then list their **container paths** in `LOCAL_GIT_PATHS`. Atlas never scans arbitrary host folders and only runs read-only Git metadata commands.
+
+```yaml
+# compose.override.yaml — do not commit personal paths
+services:
+  repo-atlas:
+    volumes:
+      - /home/you/projects/project-one:/repositories/project-one:ro
+```
+
+```dotenv
+LOCAL_GIT_PATHS=/repositories/project-one
+```
+
 ## Container logs
 
 Repo Atlas writes newline-delimited JSON logs to the container output. They cover startup, completed HTTP requests, GitHub import lifecycle, rejected requests, and unexpected server errors. Token values and authentication headers are never logged.

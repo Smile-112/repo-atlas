@@ -167,7 +167,7 @@ Prompt templates: structural review, migration-plan review, and rollback-plan ex
 | 9 | Current/proposed compare map and conflict detection | Implemented for active scenario |
 | 10 | Markdown/JSON report and migration manifest export | Implemented; includes deterministic `git subtree` commands, safety branches, and human-reviewed rollback guidance |
 | 10a | Structured container logging for startup, runtime, imports, and errors | Implemented |
-| 11 | GitLab and local Git adapters | Planned |
+| 11 | GitLab and local Git adapters | Local Git adapter implemented; GitLab adapter planned |
 | 12 | GitHub App authentication and team features | Future |
 | 13 | Separate UI/UX acceptance checks and browser interaction regression tests | Baseline acceptance suite and manual browser checklist implemented; automated browser interaction runner remains planned |
 | 14 | User-selectable visual themes | Future |
