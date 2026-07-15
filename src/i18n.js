@@ -11,18 +11,19 @@ const russian = new Map(Object.entries({
   "Workspace": "Рабочая область", "Current portfolio": "Текущий портфель", "Import GitHub": "Импорт GitHub", "Import GitLab": "Импорт GitLab", "Import local Git": "Импорт локального Git",
   "One selected owner is displayed at a time.": "Одновременно отображается один выбранный владелец.", "Uses the server-side read-only API token.": "Используется read-only API-токен на сервере.", "Reads only explicitly configured, read-only container mounts.": "Читает только явно настроенные read-only монтирования контейнера.",
   "Import repositories": "Импортировать репозитории", "Import GitLab repositories": "Импортировать репозитории GitLab", "Import local repositories": "Импортировать локальные репозитории", "Repository owner": "Владелец репозиториев", "Search": "Поиск", "Domain": "Область", "Decision": "Решение", "Recommendation rules": "Правила рекомендаций", "Merge threshold": "Порог объединения", "Hard stops:": "Жёсткие ограничения:", "Safe by design": "Безопасность по умолчанию", "Decisions are stored as a scenario. They do not modify GitHub.": "Решения хранятся как сценарий и не меняют GitHub.",
-  "Repository catalog": "Каталог репозиториев", "repositories in view": "репозиториев показано", "Demo workspace": "Демо-рабочая область", "Repository profile": "Профиль репозитория", "Detected technologies": "Определённые технологии", "Recommendation:": "Рекомендация:", "confidence": "уверенность", "Suggested target:": "Предлагаемая цель:", "Adopt recommendation": "Принять рекомендацию", "Health score": "Оценка состояния", "Last updated": "Последнее обновление", "Target monorepo": "Целевой монорепозиторий", "History strategy": "Стратегия истории", "Preserve full history": "Сохранить полную историю", "Squash into import commit": "Сжать в импорт-коммит", "Tags": "Метки", "Add custom tag": "Добавить свою метку", "Add": "Добавить",
-  "Keep separate": "Оставить отдельно", "Move to monorepo": "Перенести в монорепозиторий", "Archive": "Архивировать", "Full history": "Полная история", "Squash": "Сжать",
+  "Repository catalog": "Каталог репозиториев", "repositories in view": "репозиториев показано", "Demo workspace": "Демо-рабочая область", "Repository profile": "Профиль репозитория", "Technology stack": "Стек технологий", "Recommendation:": "Рекомендация:", "confidence": "уверенность", "Suggested target:": "Предлагаемая цель:", "Adopt recommendation": "Принять рекомендацию", "Health score": "Оценка состояния", "Last updated": "Последнее обновление", "Target monorepo": "Целевой монорепозиторий", "Archive monorepo": "Монорепозиторий «Архив»", "History strategy": "Стратегия истории", "Preserve full history": "Сохранить полную историю", "Squash into import commit": "Сжать в импорт-коммит", "Tags": "Метки", "Add custom tag": "Добавить свою метку", "Add": "Добавить",
+  "Keep separate": "Оставить отдельно", "Move to monorepo": "Перенести в монорепозиторий", "Archive": "Архивировать", "keep": "оставить отдельно", "merge": "перенос", "archive": "архив", "Full history": "Полная история", "Squash": "Сжать",
   "External review, optional": "Внешняя проверка, необязательно", "Export the migration plan": "Экспорт плана миграции", "Download a JSON manifest and Markdown plan for human review. The files never contain tokens or repository contents, and they never execute Git operations.": "Скачайте JSON-манифест и Markdown-план для проверки человеком. Файлы не содержат токенов или содержимого репозиториев и не выполняют Git-операции.", "Download manifest": "Скачать манифест", "Download Markdown": "Скачать Markdown", "Generate AI prompt": "Создать AI-промпт", "Copy prompt": "Скопировать промпт",
   "Migration safety": "Безопасность миграции", "History is a decision, not an afterthought": "История — это решение, а не деталь", "Scenario first": "Сначала сценарий", "Recorded strategy": "Зафиксированная стратегия", "Exact state": "Точное состояние", "Human execution": "Выполнение человеком",
   "Accept, edit, or discard recommendations without touching a repository.": "Принимайте, меняйте или отклоняйте рекомендации, не затрагивая репозитории.", "Each move explicitly uses full history or a squashed import.": "Для каждого переноса явно выбрана полная история или squash-импорт.", "Imports include the source branch and commit SHA when GitHub metadata is available.": "Импорт содержит исходную ветку и SHA коммита, когда эти метаданные доступны.", "Atlas exports a review plan; it never runs destructive Git actions.": "Atlas экспортирует план для проверки и не выполняет разрушительные Git-операции.",
-  "Current → proposed": "Текущее → будущее", "Scenario diff": "Различия сценария", "Proposed repository map": "Будущая карта репозиториев", "Edit decisions": "Изменить решения", "Resolve decisions": "Разрешить решения", "No planned imports": "Нет запланированных импортов", "Independent": "Отдельные", "Preserve, don’t delete": "Сохранить, не удалять"
+  "Current → proposed": "Текущее → будущее", "Scenario diff": "Различия сценария", "Proposed repository map": "Будущая карта репозиториев", "Edit decisions": "Изменить решения", "Resolve decisions": "Разрешить решения", "No planned imports": "Нет запланированных импортов", "No archive imports": "Нет импортов в архив", "Independent": "Отдельные", "Archive monorepo": "Монорепозиторий «Архив»", "Preserve, don’t delete": "Сохранить, не удалять",
+  "Drag repositories between groups to update this reversible scenario. No repository is moved on a provider.": "Перетаскивайте репозитории между группами, чтобы менять обратимый сценарий. На стороне провайдера ничего не перемещается.", "Drag a card to another group, or use its “Move to” menu.": "Перетащите карточку в другую группу или используйте меню «Переместить в».", "Move to": "Переместить в", "Open repository details": "Открыть сведения о репозитории", "No independent repositories": "Нет отдельных репозиториев", "No archived repositories": "Нет архивных репозиториев"
   , "Target monorepo": "Целевой монорепозиторий", "This is a preview of accepted decisions. No repository has been moved.": "Это предварительный вид принятых решений. Ни один репозиторий не перемещён.", "Distinct product, deployment, client, or portfolio scope.": "Отдельный продукт, развёртывание, клиентская или портфельная область.", "Original URLs and history remain available.": "Исходные URL и история остаются доступными.", "Every row is a planned change, not a Git operation.": "Каждая строка — планируемое изменение, а не Git-операция.", "Become subprojects": "Станут подпроектами", "Retain history and URL": "Сохранят историю и URL", "Stay standalone": "Останутся отдельными", "Must be resolved": "Нужно разрешить", "Accepted decisions match the active recommendation rules.": "Принятые решения соответствуют активным правилам рекомендаций.",
-  "All": "Все", "Archived": "Архивный", "Maintenance": "Поддержка", "Complete": "Завершён", "Moves": "Переносы", "Archives": "Архивы", "Unchanged": "Без изменений", "Conflicts": "Конфликты", "Planned moves": "Запланированные переносы", "Blocking conflicts": "Блокирующие конфликты", "Decisions worth reviewing": "Решения для проверки", "No moves accepted yet.": "Пока нет принятых переносов.", "No archive decisions.": "Нет решений об архивировании.", "No planned imports": "Нет запланированных импортов", "Active": "Активные", "Reset demo": "Сбросить демо", "Saved in this browser": "Сохранено в этом браузере", "Restored from this browser": "Восстановлено из этого браузера", "Demo workspace restored": "Демо-область восстановлена", "Could not save locally": "Не удалось сохранить локально"
+  "All": "Все", "Archived": "Архивный", "Maintenance": "Поддержка", "Complete": "Завершён", "Moves": "Переносы", "Archives": "Архивы", "Unchanged": "Без изменений", "Conflicts": "Конфликты", "Planned moves": "Запланированные переносы", "Blocking conflicts": "Блокирующие конфликты", "Decisions worth reviewing": "Решения для проверки", "No moves accepted yet.": "Пока нет принятых переносов.", "No archive decisions.": "Нет решений об архивировании.", "No planned imports": "Нет запланированных импортов", "Active": "Активные", "Reset demo": "Сбросить демо", "Saved in this browser": "Сохранено в этом браузере", "Restored from this browser": "Восстановлено из этого браузера", "Demo workspace restored": "Демо-область восстановлена", "Could not save locally": "Не удалось сохранить локально",
+  "Portfolio summary": "Сводка портфеля", "Owner, e.g. Smile-112": "Владелец, например Smile-112", "Repository, tag, stack": "Репозиторий, метка, стек", "Remove": "Удалить", "Generated AI review prompt": "Созданный AI-промпт для проверки", "Scenario: consolidation 2026": "Сценарий: консолидация 2026", "Full Git history": "Полная история Git", "Squashed imports": "Squash-импорты", "Unresolved target": "Цель не выбрана", "standalone": "отдельный", "Squash import": "Squash-импорт", "current decision is": "текущее решение", "current rules suggest": "текущие правила рекомендуют", "Importing repositories…": "Импорт репозиториев…", "Inspecting configured local repositories…": "Проверка настроенных локальных репозиториев…", "Importing GitLab repositories…": "Импорт репозиториев GitLab…",
+  "Scenario tools": "Инструменты сценария", "Scenario name": "Название сценария", "Scenario:": "Сценарий:", "Undo": "Отменить", "Redo": "Повторить", "Workspace file": "Файл рабочего пространства", "Export workspace": "Экспорт workspace", "Import workspace": "Импорт workspace", "How to use Repo Atlas": "Как пользоваться Repo Atlas", "Explore": "Изучите", "Model": "Смоделируйте", "Review": "Проверьте", "Import repositories, search the catalog, and review the suggested decision.": "Импортируйте репозитории, используйте поиск и изучите предложенное решение.", "Accept a recommendation or drag repositories on the future map.": "Примите рекомендацию или перетащите репозитории на будущей карте.", "Compare the scenario, then export a manifest for manual execution.": "Сравните сценарий и экспортируйте манифест для ручного выполнения.", "Manage target groups": "Управление целевыми группами", "Built-in archive": "встроенный", "Name": "Название", "Description": "Описание", "Destination folder": "Целевая папка", "Default branch": "Основная ветка", "Remote URL": "URL репозитория", "Delete group": "Удалить группу", "Add target group": "Добавить целевую группу", "Data sources": "Источники данных", "Select repository": "Выбрать репозиторий", "Sort by": "Сортировка", "Recently updated": "Недавно обновлённые", "Highest health score": "Высокая оценка состояния", "Largest first": "Сначала крупные", "Name A–Z": "Название А–Я", "Language": "Язык", "Select visible": "Выбрать показанные", "Clear selection": "Очистить выбор", "Save view": "Сохранить вид", "Delete view": "Удалить вид", "Saved views": "Сохранённые виды", "Bulk actions": "Массовые действия", "selected": "выбрано", "Saved view name": "Название сохранённого вида", "Archive imports": "Импорты в архив", "Importing…": "Импорт…", "Retry": "Повторить", "Dismiss notification": "Закрыть уведомление", "Skip to repository catalog": "Перейти к каталогу репозиториев", "Workspace imported.": "Workspace импортирован.", "Workspace file is invalid.": "Файл workspace некорректен.", "View saved.": "Вид сохранён.", "Saved view deleted.": "Сохранённый вид удалён.", "Target group added.": "Целевая группа добавлена.", "Target group deleted; its repositories were kept separate.": "Целевая группа удалена; её репозитории оставлены отдельными.", "Demo workspace restored.": "Демо-workspace восстановлен.", "The request timed out. Try again.": "Время ожидания истекло. Повторите попытку.", "The server could not be reached. Check the connection and try again.": "Сервер недоступен. Проверьте соединение и повторите попытку.",
+  "A hard stop-factor protects this repository from merge recommendations.": "Жёсткое ограничение защищает этот репозиторий от автоматического объединения.", "Repository is a fork and may need upstream updates.": "Репозиторий является форком и может зависеть от обновлений upstream.", "Small repository is easier to retain as a subproject.": "Небольшой репозиторий проще сохранить как подпроект.", "Lifecycle allows consolidation with low operational risk.": "Стадия жизненного цикла позволяет выполнить консолидацию с низким операционным риском.", "Repository lifecycle is already archived.": "Репозиторий уже находится на архивной стадии жизненного цикла.", "The project is complete and can move into the shared archive.": "Проект завершён и может быть перенесён в общий архив.", "Its compact size makes an archive import easier to review.": "Небольшой размер упрощает проверку импорта в архив.", "Verify path conflicts, CI, licenses, and release cadence before migration.": "Перед миграцией проверьте конфликты путей, CI, лицензии и цикл релизов.", "Import into the archive monorepo and preserve the original until verification.": "Импортируйте проект в монорепозиторий «Архив» и сохраняйте оригинал до завершения проверки.", "The repository is completed or archived and has no stronger thematic monorepo match.": "Репозиторий завершён или архивирован, и для него нет более подходящего тематического монорепозитория.", "No target reaches the configured compatibility threshold.": "Ни одна цель не достигает заданного порога совместимости.", "A separate deployment, roadmap, or missing context may justify keeping it independent.": "Отдельное развёртывание, собственная дорожная карта или недостающий контекст могут быть основанием оставить проект независимым.", "Criteria considered": "Проверенные критерии", "No repository tags were available.": "У репозитория нет доступных меток.", "No technology stack was available.": "Стек технологий не определён.", "No target profiles were available for comparison.": "Нет целевых профилей для сравнения."
 }));
-
-const translations = new WeakMap();
-const englishByRussian = new Map([...russian].map(([english, translated]) => [translated, english]));
 
 function translateDynamicEnglish(value) {
   const patterns = [
@@ -33,47 +34,30 @@ function translateDynamicEnglish(value) {
     [/^(\d+)% confidence$/, "уверенность $1%"],
     [/^Shared tags: (.+)\.$/, "Общие метки: $1."],
     [/^Compatible stack: (.+)\.$/, "Совместимый стек: $1."],
+    [/^Archive signals: (.+)\.$/, "Архивные признаки: $1."],
     [/^Matches the (.+) domain\.$/, "Соответствует области $1."],
-    [/^Suggested target:$/, "Предлагаемая цель:"]
+    [/^The #(.+) tag prevents automatic merge recommendations\.$/, "Метка #$1 запрещает автоматические рекомендации по объединению."],
+    [/^Repository tags checked: (.+)\.$/, "Проверены метки репозитория: $1."],
+    [/^Technology stack checked: (.+)\.$/, "Проверен стек технологий: $1."],
+    [/^Domain checked: Unclassified\.$/, "Проверена область: без классификации."],
+    [/^Domain checked: (.+)\.$/, "Проверена область: $1."],
+    [/^Lifecycle checked: Active\.$/, "Проверен жизненный цикл: активный."],
+    [/^Lifecycle checked: Maintenance\.$/, "Проверен жизненный цикл: поддержка."],
+    [/^Lifecycle checked: Complete\.$/, "Проверен жизненный цикл: завершённый."],
+    [/^Lifecycle checked: Archived\.$/, "Проверен жизненный цикл: архивный."],
+    [/^Lifecycle checked: (.+)\.$/, "Проверен жизненный цикл: $1."],
+    [/^Strongest target match: (.+) scored (\d+)\/100; threshold is (\d+)\.$/, "Лучшее совпадение — $1: $2/100 при пороге $3."],
+    [/^The strongest candidate scored (\d+)\/100, below the (\d+) threshold\.$/, "Лучший кандидат набрал $1/100 — ниже порога $2."],
+    [/^Suggested target:$/, "Предлагаемая цель:"],
+    [/^(.+) moved to (.+)\.$/, "$1 перемещён в $2."],
+    [/^(.+) moved\.$/, "$1 перемещён."],
+    [/^(\d+) repositories updated\.$/, "Обновлено репозиториев: $1."]
   ];
   for (const [pattern, replacement] of patterns) if (pattern.test(value)) return value.replace(pattern, replacement);
   return null;
 }
 
-function localizeRenderedText(language) {
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  const nodes = [];
-  while (walker.nextNode()) nodes.push(walker.currentNode);
-  for (const node of nodes) {
-    if (node.parentElement?.closest("textarea, pre, code")) continue;
-    const current = node.nodeValue;
-    let translation = translations.get(node);
-    if (translation && current !== translation.en && current !== translation.ru) {
-      translations.delete(node);
-      translation = null;
-    }
-    if (!translation) {
-      const trimmed = current.trim();
-      const english = russian.has(trimmed) || translateDynamicEnglish(trimmed) ? trimmed : englishByRussian.get(trimmed);
-      if (!english) continue;
-      const translated = russian.get(english) ?? translateDynamicEnglish(english);
-      if (!translated) continue;
-      translation = {
-        en: current.replace(trimmed, english),
-        ru: current.replace(trimmed, translated)
-      };
-      translations.set(node, translation);
-    }
-    const next = translation[language];
-    if (node.nodeValue !== next) node.nodeValue = next;
-  }
-}
-
-export { localizeRenderedText };
-
-export function observeLocalization(language) {
-  localizeRenderedText(language);
-  const observer = new MutationObserver(() => localizeRenderedText(language));
-  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-  return () => observer.disconnect();
+export function translate(language, value) {
+  if (language !== "ru" || typeof value !== "string") return value;
+  return russian.get(value) ?? translateDynamicEnglish(value) ?? value;
 }

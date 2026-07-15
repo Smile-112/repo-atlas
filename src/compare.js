@@ -8,12 +8,17 @@ export function compareScenario(repositories, targets, rules) {
   const unchanged = repositories.filter((repository) => repository.decision === "keep");
   const conflicts = [];
   const review = [];
+  const plannedImports = [...moves, ...archives];
 
   for (const repository of moves) {
     if (!repository.target || !targetIds.has(repository.target)) conflicts.push({ repository, message: "Merge decision has no valid target monorepo." });
   }
+  for (const repository of archives) {
+    const target = targets.find((item) => item.id === repository.target);
+    if (!target || target.kind !== "archive") conflicts.push({ repository, message: "Archive decision has no valid archive monorepo." });
+  }
   const destinations = new Map();
-  for (const repository of moves) {
+  for (const repository of plannedImports) {
     const target = targets.find((item) => item.id === repository.target);
     if (!target) continue;
     const key = `${target.id}:${migrationDestinationPath(repository, target)}`;
@@ -26,7 +31,7 @@ export function compareScenario(repositories, targets, rules) {
   }
   for (const repository of repositories) {
     const analysis = analyseRepository(repository, targets, rules);
-    if (analysis.action !== repository.decision && !analysis.hardStops.length) review.push({ repository, analysis });
+    if ((analysis.action !== repository.decision || (["merge", "archive"].includes(analysis.action) && analysis.target !== repository.target)) && !analysis.hardStops.length) review.push({ repository, analysis });
   }
   return { moves, archives, unchanged, conflicts, review };
 }

@@ -8,7 +8,9 @@ function slug(value) {
 }
 
 export function migrationDestinationPath(repository, target) {
-  const folder = target.id === "minecraft-addons" ? "mods" : "projects";
+  const fallback = target.id === "minecraft-addons" ? "mods" : "projects";
+  const candidate = String(target.pathPrefix || fallback).replaceAll("\\", "/").replace(/^\/+|\/+$/g, "");
+  const folder = candidate && !candidate.split("/").some((part) => !part || part === "." || part === ".." || !/^[a-zA-Z0-9_-]+$/.test(part)) ? candidate : fallback;
   return `${folder}/${slug(repository.id)}`;
 }
 
@@ -44,15 +46,16 @@ export function buildMigrationManifest(repositories, targets, generatedAt = new 
   const moves = [];
   const unresolved = [];
   const destinationCounts = new Map();
+  const plannedImports = repositories.filter((item) => ["merge", "archive"].includes(item.decision));
 
-  for (const repository of repositories.filter((item) => item.decision === "merge")) {
+  for (const repository of plannedImports) {
     const target = targetById.get(repository.target);
     if (!target) continue;
     const key = `${target.id}:${migrationDestinationPath(repository, target)}`;
     destinationCounts.set(key, (destinationCounts.get(key) ?? 0) + 1);
   }
 
-  for (const repository of repositories.filter((item) => item.decision === "merge")) {
+  for (const repository of plannedImports) {
     const target = targetById.get(repository.target);
     if (!target) {
       unresolved.push({ repository: repository.id, reason: "A valid target monorepo is required." });
@@ -71,6 +74,7 @@ export function buildMigrationManifest(repositories, targets, generatedAt = new 
       targetMonorepo: target.id,
       destinationPath,
       historyStrategy: repository.history === "squash" ? "squash" : "full",
+      decision: repository.decision,
       status: destinationConflict ? "destination-conflict" : hasSourceMetadata ? "ready-for-human-review" : "needs-source-metadata",
       verification: { preMigration: "pending", postMigration: "pending", originalRepository: "preserve-until-verified" }
     };
@@ -82,7 +86,7 @@ export function buildMigrationManifest(repositories, targets, generatedAt = new 
     generatedAt,
     safety: { executesGitOperations: false, destructiveOperations: false, humanReviewRequired: true },
     moves,
-    archives: repositories.filter((item) => item.decision === "archive").map((item) => ({ repository: item.id, sourceUrl: item.url ?? null, action: "archive-after-verification", originalHistory: "preserve" })),
+    archives: repositories.filter((item) => item.decision === "archive").map((item) => ({ repository: item.id, sourceUrl: item.url ?? null, targetMonorepo: item.target ?? null, action: "import-to-archive-monorepo-then-archive-original", originalHistory: "preserve" })),
     unresolved,
     verificationChecklist: ["Confirm source branch and commit SHA.", "Build and test each source repository.", "Review destination-path and license conflicts.", "Create the recorded safety branch before each import.", "Import manually, then verify the target build and history.", "Archive originals only after verification; never delete them from this plan."]
   };

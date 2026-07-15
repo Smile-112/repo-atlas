@@ -5,6 +5,7 @@ import { configuredOwners, fetchOwnedRepositories } from "./github.js";
 import { configuredLocalPaths, fetchLocalRepositories } from "./localGit.js";
 import { fetchGitLabProjects, gitlabBaseUrl } from "./gitlab.js";
 import { logger } from "./logger.js";
+import { createAccessControl } from "./accessControl.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -36,15 +37,9 @@ app.use((request, response, next) => {
   next();
 });
 
-app.get("/api/health", (_request, response) => {
-  response.json({
-    ok: true,
-    githubConfigured: Boolean(process.env.GITHUB_TOKEN),
-    gitlabConfigured: Boolean(process.env.GITLAB_TOKEN),
-    localGitConfigured: configuredLocalPaths(process.env.LOCAL_GIT_PATHS).length > 0,
-    owners: configuredOwners(process.env.GITHUB_OWNERS)
-  });
-});
+app.get("/api/health", (_request, response) => response.json({ ok: true, authRequired: Boolean(process.env.REPO_ATLAS_ACCESS_KEY) }));
+
+app.use(createAccessControl({ username: process.env.REPO_ATLAS_ACCESS_USER ?? "atlas", accessKey: process.env.REPO_ATLAS_ACCESS_KEY ?? "" }));
 
 app.get("/api/github/owners", (_request, response) => response.json({ owners: configuredOwners(process.env.GITHUB_OWNERS) }));
 

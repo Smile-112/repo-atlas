@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
-import { clearWorkspace, loadWorkspace, saveWorkspace } from "./workspaceStorage";
+import { clearWorkspace, loadWorkspace, parseWorkspace, saveWorkspace, serializeWorkspace } from "./workspaceStorage";
 import { analyseRepository, DEFAULT_RULES } from "./analysis";
 import { compareScenario } from "./compare";
 import { buildMigrationManifest, manifestToMarkdown } from "./migrationPlan";
-import { messages, observeLocalization } from "./i18n";
+import { messages, translate } from "./i18n";
 import { mergeImportedRepositories } from "./importWorkspace";
+import { CompareView, Filter, Metric, ProposedMap, RepositoryCard, RepositoryDetail, ScenarioToolbar } from "./components/AtlasViews";
+import { useScenarioHistory } from "./useScenarioHistory";
+import { requestJson } from "./apiClient";
 
-const targets = [
-  { id: "minecraft-addons", name: "minecraft-addons", description: "Mods, plugins and server tooling", strategy: "Full Git history" },
-  { id: "personal-lab", name: "personal-lab", description: "Small utilities and experiments", strategy: "Squashed imports" },
-  { id: "learning-archive", name: "learning-archive", description: "Finished learning projects", strategy: "Squashed imports" }
+const initialTargets = [
+  { id: "minecraft-addons", name: "minecraft-addons", description: "Mods, plugins and server tooling", strategy: "Full Git history", pathPrefix: "mods", defaultBranch: "main", remoteUrl: "" },
+  { id: "personal-lab", name: "personal-lab", description: "Small utilities and experiments", strategy: "Squashed imports", pathPrefix: "projects", defaultBranch: "main", remoteUrl: "" },
+  { id: "learning-archive", name: "learning-archive", description: "Finished learning projects", strategy: "Squashed imports", pathPrefix: "projects", defaultBranch: "main", remoteUrl: "" },
+  { id: "archive", name: "Archive monorepo", description: "Completed and inactive projects preserved in one monorepo", strategy: "Full Git history", pathPrefix: "repositories", defaultBranch: "main", remoteUrl: "", kind: "archive" }
 ];
 
 const initialRepositories = [
@@ -22,12 +26,11 @@ const initialRepositories = [
   { id: "VTI_System", domain: "Industrial", status: "Maintenance", language: "Python", updated: "2025-06-19", size: 41, score: 74, decision: "keep", description: "Rotating-equipment diagnostics.", tags: ["industrial", "portfolio"], target: null, history: "full" },
   { id: "Recommendation_system", domain: "Portfolio", status: "Complete", language: "Go", updated: "2025-04-17", size: 13, score: 81, decision: "keep", description: "Standalone public recommendation project.", tags: ["portfolio", "public"], target: null, history: "full" },
   { id: "new_site_for_kerosinka", domain: "Web", status: "Active", language: "TypeScript", updated: "2026-05-21", size: 57, score: 79, decision: "keep", description: "Client website with own deployment.", tags: ["client", "web"], target: null, history: "full" },
-  { id: "django-sprint4", domain: "Learning", status: "Complete", language: "Python", updated: "2024-11-12", size: 9, score: 58, decision: "archive", description: "Completed learning project.", tags: ["learning", "django"], target: null, history: "squash" },
+  { id: "django-sprint4", domain: "Learning", status: "Complete", language: "Python", updated: "2024-11-12", size: 9, score: 58, decision: "archive", description: "Completed learning project.", tags: ["learning", "django"], target: "archive", history: "full" },
   { id: "homework-bot", domain: "Automation", status: "Archived", language: "Python", updated: "2024-07-01", size: 4, score: 48, decision: "merge", description: "Small utility bot.", tags: ["bot", "learning"], target: "personal-lab", history: "squash" }
 ];
 
 const actions = ["all", "keep", "merge", "archive"];
-const decisionText = { keep: "Keep separate", merge: "Move to monorepo", archive: "Archive" };
 const themes = new Set(["atlas", "claude", "elevenlabs", "ollama"]);
 const languages = new Set(["en", "ru"]);
 
@@ -44,16 +47,20 @@ function buildPrompt(repositories, targets) {
   const moves = repositories.filter((repo) => repo.decision === "merge");
   const archives = repositories.filter((repo) => repo.decision === "archive");
   const targetLines = targets.map((target) => {
-    const members = moves.filter((repo) => repo.target === target.id);
-    return members.length ? `- ${target.name} (${target.strategy}): ${members.map((repo) => repo.id).join(", ")}` : null;
+    const members = [...moves, ...archives].filter((repo) => repo.target === target.id);
+    return members.length ? `- ${target.name} (${target.kind === "archive" ? "archive" : "consolidation"}, ${target.strategy}): ${members.map((repo) => repo.id).join(", ")}` : null;
   }).filter(Boolean).join("\n");
-  return `You are a senior Git engineer. Review this repository consolidation plan.\n\nGoal\nKeep independent products separate; group related small projects into thematic monorepositories.\n\nProposed monorepos\n${targetLines || "- None"}\n\nArchives\n${archives.map((repo) => `- ${repo.id}`).join("\n") || "- None"}\n\nConstraints\n- Do not propose destructive commands without a safer alternative.\n- ${moves.some((repo) => repo.history === "full") ? "Preserve full Git history for items marked Full Git history." : "Use a documented import strategy."}\n- Original repositories are archived only after build and history verification.\n- Treat this as a review; do not execute changes.\n\nInspect likely path conflicts, CI implications, licensing, forks/upstreams, and rollback gaps. Ask concise questions where data is missing.`;
+  return `You are a senior Git engineer. Review this repository consolidation plan.\n\nGoal\nKeep independent products separate; group related small projects into thematic monorepositories and consolidate completed projects in one archive monorepo.\n\nProposed monorepos\n${targetLines || "- None"}\n\nArchive imports\n${archives.map((repo) => `- ${repo.id} → ${targets.find((target) => target.id === repo.target)?.name ?? "Archive"}`).join("\n") || "- None"}\n\nConstraints\n- Do not propose destructive commands without a safer alternative.\n- ${[...moves, ...archives].some((repo) => repo.history === "full") ? "Preserve full Git history for items marked Full Git history." : "Use a documented import strategy."}\n- Original repositories are archived only after build and history verification.\n- Treat this as a review; do not execute changes.\n\nInspect likely path conflicts, CI implications, licensing, forks/upstreams, and rollback gaps. Ask concise questions where data is missing.`;
 }
 
 function App() {
-  const [workspace] = useState(() => loadWorkspace(initialRepositories));
-  const [repositories, setRepositories] = useState(workspace.repositories);
-  const [selectedId, setSelectedId] = useState(initialRepositories[1].id);
+  const [workspace] = useState(() => loadWorkspace(initialRepositories, initialTargets));
+  const scenarioHistory = useScenarioHistory({ repositories: workspace.repositories, targets: workspace.targets, scenarioName: workspace.scenarioName, savedViews: workspace.savedViews });
+  const { repositories, targets, scenarioName, savedViews } = scenarioHistory.scenario;
+  const setRepositories = scenarioHistory.updateRepositories;
+  const setTargets = scenarioHistory.updateTargets;
+  const [selectedId, setSelectedId] = useState(workspace.repositories[0]?.id ?? initialRepositories[0].id);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [mode, setMode] = useState("current");
   const [domain, setDomain] = useState("all");
   const [decision, setDecision] = useState("all");
@@ -63,11 +70,18 @@ function App() {
   const [githubOwner, setGithubOwner] = useState("");
   const [githubOwners, setGithubOwners] = useState([]);
   const [importState, setImportState] = useState("");
+  const [importBusy, setImportBusy] = useState("");
+  const [lastImport, setLastImport] = useState(null);
+  const [sortBy, setSortBy] = useState("updated-desc");
+  const [savedViewName, setSavedViewName] = useState("");
+  const [activeSavedView, setActiveSavedView] = useState("");
+  const [toast, setToast] = useState(null);
   const [saveState, setSaveState] = useState(workspace.source === "local" ? "Restored from this browser" : "Demo workspace");
   const [rules, setRules] = useState(DEFAULT_RULES);
   const [theme, setTheme] = useState(() => loadPreference("repo-atlas.theme", themes, "atlas"));
   const [language, setLanguage] = useState(() => loadPreference("repo-atlas.language", languages, "en"));
   const t = messages[language];
+  const tr = (value) => translate(language, value);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -77,16 +91,15 @@ function App() {
     document.documentElement.lang = language;
     try { window.localStorage.setItem("repo-atlas.language", language); } catch { /* The UI still works when storage is unavailable. */ }
   }, [language]);
-  useEffect(() => observeLocalization(language), [language]);
 
   useEffect(() => {
     try {
-      saveWorkspace(repositories);
+      saveWorkspace(scenarioHistory.scenario);
       setSaveState("Saved in this browser");
     } catch {
       setSaveState("Could not save locally");
     }
-  }, [repositories]);
+  }, [scenarioHistory.scenario]);
 
   useEffect(() => {
     fetch("/api/github/owners")
@@ -102,16 +115,26 @@ function App() {
 
   const selected = repositories.find((repo) => repo.id === selectedId) ?? repositories[0];
   const domains = ["all", ...new Set(repositories.map((repo) => repo.domain))];
-  const filtered = useMemo(() => repositories.filter((repo) =>
-    (domain === "all" || repo.domain === domain) &&
-    (decision === "all" || repo.decision === decision) &&
-    `${repo.id} ${repo.description} ${repo.language} ${repo.tags.join(" ")}`.toLowerCase().includes(query.toLowerCase())
-  ), [repositories, domain, decision, query]);
+  const filtered = useMemo(() => {
+    const matches = repositories.filter((repo) =>
+      (domain === "all" || repo.domain === domain) &&
+      (decision === "all" || repo.decision === decision) &&
+      `${repo.id} ${repo.description} ${repo.language} ${repo.tags.join(" ")}`.toLowerCase().includes(query.toLowerCase())
+    );
+    const sorters = {
+      "updated-desc": (a, b) => String(b.updated).localeCompare(String(a.updated)),
+      "score-desc": (a, b) => b.score - a.score,
+      "size-desc": (a, b) => b.size - a.size,
+      "name-asc": (a, b) => a.id.localeCompare(b.id),
+      "language-asc": (a, b) => a.language.localeCompare(b.language) || a.id.localeCompare(b.id)
+    };
+    return [...matches].sort(sorters[sortBy] ?? sorters["updated-desc"]);
+  }, [repositories, domain, decision, query, sortBy]);
   const mergeCount = repositories.filter((repo) => repo.decision === "merge").length;
   const activeCount = repositories.filter((repo) => repo.status === "Active").length;
   const analysis = analyseRepository(selected, targets, rules);
   const comparison = compareScenario(repositories, targets, rules);
-  const migrationManifest = useMemo(() => buildMigrationManifest(repositories, targets), [repositories]);
+  const migrationManifest = useMemo(() => buildMigrationManifest(repositories, targets), [repositories, targets]);
 
   function download(filename, contents, type) {
     const url = URL.createObjectURL(new Blob([contents], { type }));
@@ -127,6 +150,17 @@ function App() {
   function updateSelected(patch) {
     setRepositories((items) => items.map((repo) => repo.id === selected.id ? { ...repo, ...patch } : repo));
   }
+  function notify(message, undoable = false) {
+    setToast({ message, undoable });
+  }
+  function undoScenario() {
+    scenarioHistory.undo();
+    setToast(null);
+  }
+  function redoScenario() {
+    scenarioHistory.redo();
+    setToast(null);
+  }
   function addTag(event) {
     event.preventDefault();
     const tag = tagInput.trim().toLowerCase().replace(/\s+/g, "-");
@@ -134,6 +168,81 @@ function App() {
     setTagInput("");
   }
   function removeTag(tag) { updateSelected({ tags: selected.tags.filter((item) => item !== tag) }); }
+  function moveRepository(repoId, destination) {
+    setRepositories((items) => items.map((repo) => {
+      if (repo.id !== repoId) return repo;
+      if (destination === "keep") return { ...repo, decision: "keep", target: null };
+      const target = targets.find((item) => item.id === destination);
+      if (target?.kind === "archive" || destination === "archive") return { ...repo, decision: "archive", target: target?.id ?? targets.find((item) => item.kind === "archive")?.id ?? null, history: "full" };
+      return { ...repo, decision: "merge", target: destination };
+    }));
+    notify(`${repoId} moved.`, true);
+  }
+  function toggleRepository(repoId) {
+    setSelectedIds((items) => items.includes(repoId) ? items.filter((id) => id !== repoId) : [...items, repoId]);
+  }
+  function applyBulkDecision(nextDecision, target = null) {
+    if (!selectedIds.length) return;
+    const archiveTarget = targets.find((item) => item.kind === "archive")?.id ?? null;
+    setRepositories((items) => items.map((repo) => selectedIds.includes(repo.id) ? { ...repo, decision: nextDecision, target: nextDecision === "merge" ? target ?? targets.find((item) => item.kind !== "archive")?.id ?? null : nextDecision === "archive" ? archiveTarget : null, history: nextDecision === "archive" ? "full" : repo.history } : repo));
+    notify(`${selectedIds.length} repositories updated.`, true);
+    setSelectedIds([]);
+  }
+  function addTarget() {
+    const base = "new-group";
+    let id = base;
+    let index = 2;
+    while (targets.some((target) => target.id === id)) id = `${base}-${index++}`;
+    setTargets((items) => [...items, { id, name: id, description: "", strategy: "Full Git history", pathPrefix: "projects", defaultBranch: "main", remoteUrl: "" }]);
+    notify("Target group added.", true);
+  }
+  function updateTarget(targetId, patch) {
+    setTargets((items) => items.map((target) => target.id === targetId ? { ...target, ...patch } : target));
+  }
+  function deleteTarget(targetId) {
+    if (targets.find((target) => target.id === targetId)?.kind === "archive") return;
+    if (targets.length <= 1) return;
+    scenarioHistory.updateScenario((current) => ({
+      ...current,
+      targets: current.targets.filter((target) => target.id !== targetId),
+      repositories: current.repositories.map((repo) => repo.target === targetId ? { ...repo, decision: "keep", target: null } : repo),
+    }));
+    notify("Target group deleted; its repositories were kept separate.", true);
+  }
+  function exportWorkspace() {
+    download("repo-atlas-workspace.json", serializeWorkspace(scenarioHistory.scenario), "application/json");
+  }
+  async function importWorkspaceFile(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const imported = parseWorkspace(JSON.parse(await file.text()), initialRepositories, initialTargets);
+      scenarioHistory.replaceScenario({ repositories: imported.repositories, targets: imported.targets, scenarioName: imported.scenarioName, savedViews: imported.savedViews });
+      setSelectedId(imported.repositories[0]?.id ?? initialRepositories[0].id);
+      setSelectedIds([]);
+      notify("Workspace imported.", true);
+    } catch {
+      notify("Workspace file is invalid.");
+    }
+  }
+  function saveCurrentView() {
+    const name = savedViewName.trim();
+    if (!name) return;
+    scenarioHistory.updateScenario((current) => ({ ...current, savedViews: [...current.savedViews.filter((view) => view.name !== name), { name, domain, decision, query, sortBy }].slice(-20) }));
+    setActiveSavedView(name);
+    setSavedViewName("");
+    notify("View saved.", true);
+  }
+  function applySavedView(view) {
+    setDomain(view.domain ?? "all"); setDecision(view.decision ?? "all"); setQuery(view.query ?? ""); setSortBy(view.sortBy ?? "updated-desc");
+  }
+  function deleteSavedView() {
+    if (!activeSavedView) return;
+    scenarioHistory.updateScenario((current) => ({ ...current, savedViews: current.savedViews.filter((view) => view.name !== activeSavedView) }));
+    setActiveSavedView("");
+    notify("Saved view deleted.", true);
+  }
   function makePrompt() {
     setPrompt(buildPrompt(repositories, targets));
   }
@@ -144,90 +253,109 @@ function App() {
   }
   function resetWorkspace() {
     clearWorkspace();
-    setRepositories(initialRepositories);
+    scenarioHistory.replaceScenario({ repositories: initialRepositories, targets: initialTargets, scenarioName: "Consolidation 2026", savedViews: [] });
     setSelectedId(initialRepositories[1].id);
+    setSelectedIds([]);
     setDomain("all");
     setDecision("all");
     setQuery("");
     setImportState("");
     setPrompt("");
     setSaveState("Demo workspace restored");
+    notify("Demo workspace restored.", true);
   }
   async function importGitHub() {
+    if (importBusy) return;
+    setImportBusy("github");
+    setLastImport("github");
     setImportState("Importing repositories…");
     try {
       const owner = githubOwner.trim();
-      const response = await fetch(`/api/github/repositories?owner=${encodeURIComponent(owner)}`);
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? "Import failed.");
+      const payload = await requestJson(`/api/github/repositories?owner=${encodeURIComponent(owner)}`);
       if (!payload.repositories.length) throw new Error("GitHub returned no repositories for this owner.");
-      setRepositories((current) => {
-        return mergeImportedRepositories(current, payload.repositories);
-      });
+      setRepositories((current) => mergeImportedRepositories(current, payload.repositories));
       setSelectedId(payload.repositories[0]?.id ?? initialRepositories[0].id);
       setImportState(`Imported ${payload.repositories.length} repositories.`);
     } catch (error) {
       setImportState(error.message);
+    } finally {
+      setImportBusy("");
     }
   }
   async function importLocalGit() {
+    if (importBusy) return;
+    setImportBusy("local");
+    setLastImport("local");
     setImportState("Inspecting configured local repositories…");
     try {
-      const response = await fetch("/api/local/repositories");
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? "Local Git import failed.");
+      const payload = await requestJson("/api/local/repositories");
       if (!payload.repositories.length) throw new Error("No readable local Git repositories were found.");
       setRepositories((current) => mergeImportedRepositories(current, payload.repositories));
       setSelectedId(payload.repositories[0]?.id ?? initialRepositories[0].id);
       setImportState(`Imported ${payload.repositories.length} local repositories.`);
     } catch (error) {
       setImportState(error.message);
+    } finally {
+      setImportBusy("");
     }
   }
   async function importGitLab() {
+    if (importBusy) return;
+    setImportBusy("gitlab");
+    setLastImport("gitlab");
     setImportState("Importing GitLab repositories…");
     try {
-      const response = await fetch("/api/gitlab/repositories");
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? "GitLab import failed.");
+      const payload = await requestJson("/api/gitlab/repositories");
       if (!payload.repositories.length) throw new Error("GitLab returned no accessible repositories.");
       setRepositories((current) => mergeImportedRepositories(current, payload.repositories));
       setSelectedId(payload.repositories[0]?.id ?? initialRepositories[0].id);
       setImportState(`Imported ${payload.repositories.length} GitLab repositories.`);
     } catch (error) {
       setImportState(error.message);
+    } finally {
+      setImportBusy("");
     }
   }
+  function retryLastImport() {
+    if (lastImport === "github") importGitHub();
+    if (lastImport === "gitlab") importGitLab();
+    if (lastImport === "local") importLocalGit();
+  }
 
-  return <main>
+  return <><a className="skip-link" href="#catalog">{tr("Skip to repository catalog")}</a><main>
     <header className="hero">
-      <div><p className="eyebrow">Repository intelligence, locally owned</p><h1>Repo Atlas</h1><p className="lede">Explore today’s repositories, model a safer tomorrow, then export a reviewable migration plan.</p></div>
-      <div className="hero-controls"><div className="mode-switch" aria-label="Atlas mode"><button className={mode === "current" ? "active" : ""} onClick={() => setMode("current")}>{t.current}</button><button className={mode === "proposed" ? "active" : ""} onClick={() => setMode("proposed")}>{t.proposed}</button><button className={mode === "compare" ? "active" : ""} onClick={() => setMode("compare")}>{t.compare}</button></div><label className="appearance">{t.theme}<select value={theme} onChange={(event) => setTheme(event.target.value)}><option value="atlas">Atlas</option><option value="claude">Claude</option><option value="elevenlabs">ElevenLabs</option><option value="ollama">Ollama</option></select></label><label className="appearance">{t.language}<select value={language} onChange={(event) => setLanguage(event.target.value)}><option value="en">English</option><option value="ru">Русский</option></select></label><span className="workspace-status">● {saveState}</span><button className="reset" onClick={resetWorkspace}>{t.reset}</button></div>
+      <div><p className="eyebrow">{tr("Repository intelligence, locally owned")}</p><h1>Repo Atlas</h1><p className="lede">{tr("Explore today’s repositories, model a safer tomorrow, then export a reviewable migration plan.")}</p></div>
+      <div className="hero-controls"><div className="mode-switch" aria-label="Atlas mode"><button aria-pressed={mode === "current"} className={mode === "current" ? "active" : ""} onClick={() => setMode("current")}>{t.current}</button><button aria-pressed={mode === "proposed"} className={mode === "proposed" ? "active" : ""} onClick={() => setMode("proposed")}>{t.proposed}</button><button aria-pressed={mode === "compare"} className={mode === "compare" ? "active" : ""} onClick={() => setMode("compare")}>{t.compare}</button></div><label className="appearance">{t.theme}<select value={theme} onChange={(event) => setTheme(event.target.value)}><option value="atlas">Atlas</option><option value="claude">Claude</option><option value="elevenlabs">ElevenLabs</option><option value="ollama">Ollama</option></select></label><label className="appearance">{t.language}<select value={language} onChange={(event) => setLanguage(event.target.value)}><option value="en">English</option><option value="ru">Русский</option></select></label><span className="workspace-status">● {tr(saveState)}</span><button className="reset" onClick={resetWorkspace}>{t.reset}</button></div>
     </header>
 
-    <section className="metrics" aria-label="Portfolio summary"><Metric label="Repositories" value={repositories.length} hint="In this workspace" /><Metric label="Active" value={activeCount} hint="Updated or maintained" /><Metric label="Planned moves" value={mergeCount} hint="Reversible scenario decisions" tone="accent" /><Metric label="Target monorepos" value={targets.filter((target) => repositories.some((repo) => repo.target === target.id && repo.decision === "merge")).length} hint="Visible in proposed map" tone="blue" /></section>
+    <section className="metrics" aria-label={tr("Portfolio summary")}><Metric label={tr("Repositories")} value={repositories.length} hint={tr("In this workspace")} /><Metric label={tr("Active")} value={activeCount} hint={tr("Updated or maintained")} /><Metric label={tr("Planned moves")} value={mergeCount} hint={tr("Reversible scenario decisions")} tone="accent" /><Metric label={tr("Target monorepos")} value={targets.length} hint={tr("Visible in proposed map")} tone="blue" /></section>
+
+    <ScenarioToolbar scenarioName={scenarioName} onScenarioName={(value) => scenarioHistory.updateScenario((current) => ({ ...current, scenarioName: value }))} canUndo={scenarioHistory.canUndo} canRedo={scenarioHistory.canRedo} onUndo={undoScenario} onRedo={redoScenario} onExport={exportWorkspace} onImport={importWorkspaceFile} targets={targets} onAddTarget={addTarget} onUpdateTarget={updateTarget} onDeleteTarget={deleteTarget} tr={tr} />
 
     {mode === "current" ? <section className="workspace" id="catalog">
-      <aside className="filters"><div><p className="eyebrow">Workspace</p><h2>Current portfolio</h2></div><div className="importer"><strong>Import GitHub</strong><p>One selected owner is displayed at a time.</p>{githubOwners.length ? <label>Repository owner<select value={githubOwner} onChange={(event) => setGithubOwner(event.target.value)}>{githubOwners.map((owner) => <option key={owner} value={owner}>{owner}</option>)}</select></label> : <input value={githubOwner} onChange={(event) => setGithubOwner(event.target.value)} placeholder="Owner, e.g. Smile-112" />}<button type="button" onClick={importGitHub}>Import repositories</button></div><div className="importer"><strong>Import GitLab</strong><p>Uses the server-side read-only API token.</p><button type="button" onClick={importGitLab}>Import GitLab repositories</button></div><div className="importer"><strong>Import local Git</strong><p>Reads only explicitly configured, read-only container mounts.</p><button type="button" onClick={importLocalGit}>Import local repositories</button></div>{importState && <p className="import-status" role="status">{importState}</p>}<label>Search<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Repository, tag, stack" /></label><Filter label="Domain" value={domain} onChange={setDomain} values={domains} /><Filter label="Decision" value={decision} onChange={setDecision} values={actions} /><div className="rule-editor"><strong>Recommendation rules</strong><label>Merge threshold <output>{rules.mergeThreshold}%</output><input type="range" min="40" max="90" value={rules.mergeThreshold} onChange={(event) => setRules({ ...rules, mergeThreshold: Number(event.target.value) })} /></label><small>Hard stops: {rules.hardStopTags.map((tag) => `#${tag}`).join(", ")}</small></div><div className="principle"><strong>Safe by design</strong><p>Decisions are stored as a scenario. They do not modify GitHub.</p></div></aside>
-      <div className="content"><div className="section-title"><div><p className="eyebrow">Repository catalog</p><h2>{filtered.length} repositories in view</h2></div><span>Demo workspace</span></div><div className="repo-grid">{filtered.map((repo) => <RepositoryCard key={repo.id} repo={repo} selected={selected.id === repo.id} onClick={() => setSelectedId(repo.id)} />)}</div></div>
-      <RepositoryDetail repo={selected} targets={targets} analysis={analysis} onUpdate={updateSelected} tagInput={tagInput} setTagInput={setTagInput} onAddTag={addTag} onRemoveTag={removeTag} />
-    </section> : mode === "proposed" ? <ProposedMap repositories={repositories} targets={targets} onSelect={setSelectedId} onCurrent={() => setMode("current")} /> : <CompareView comparison={comparison} targets={targets} onCurrent={() => setMode("current")} />}
+      <aside className="filters">
+        <div><p className="eyebrow">{tr("Workspace")}</p><h2>{tr("Current portfolio")}</h2></div>
+        <label>{tr("Search")}<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tr("Repository, tag, stack")} /></label>
+        <Filter label={tr("Domain")} value={domain} onChange={setDomain} values={domains} tr={tr} />
+        <Filter label={tr("Decision")} value={decision} onChange={setDecision} values={actions} tr={tr} />
+        <details className="control-section"><summary>{tr("Data sources")}</summary><div className="control-section-body">
+          <div className="importer"><strong>{tr("Import GitHub")}</strong><p>{tr("One selected owner is displayed at a time.")}</p>{githubOwners.length ? <label>{tr("Repository owner")}<select value={githubOwner} onChange={(event) => setGithubOwner(event.target.value)}>{githubOwners.map((owner) => <option key={owner} value={owner}>{owner}</option>)}</select></label> : <input value={githubOwner} onChange={(event) => setGithubOwner(event.target.value)} placeholder={tr("Owner, e.g. Smile-112")} />}<button type="button" disabled={Boolean(importBusy)} onClick={importGitHub}>{importBusy === "github" ? tr("Importing…") : tr("Import repositories")}</button></div>
+          <div className="importer"><strong>{tr("Import GitLab")}</strong><p>{tr("Uses the server-side read-only API token.")}</p><button type="button" disabled={Boolean(importBusy)} onClick={importGitLab}>{importBusy === "gitlab" ? tr("Importing…") : tr("Import GitLab repositories")}</button></div>
+          <div className="importer"><strong>{tr("Import local Git")}</strong><p>{tr("Reads only explicitly configured, read-only container mounts.")}</p><button type="button" disabled={Boolean(importBusy)} onClick={importLocalGit}>{importBusy === "local" ? tr("Importing…") : tr("Import local repositories")}</button></div>
+          {importState && <div className="import-status" role="status"><span>{importBusy && <i className="spinner" aria-hidden="true" />} {tr(importState)}</span>{!importBusy && lastImport && <button type="button" onClick={retryLastImport}>{tr("Retry")}</button>}</div>}
+        </div></details>
+        <details className="rule-editor"><summary>{tr("Recommendation rules")}</summary><label>{tr("Merge threshold")} <output>{rules.mergeThreshold}%</output><input type="range" min="40" max="90" value={rules.mergeThreshold} onChange={(event) => setRules({ ...rules, mergeThreshold: Number(event.target.value) })} /></label><small>{tr("Hard stops:")} {rules.hardStopTags.map((tag) => `#${tag}`).join(", ")}</small></details>
+        <div className="principle"><strong>{tr("Safe by design")}</strong><p>{tr("Decisions are stored as a scenario. They do not modify GitHub.")}</p></div>
+      </aside>
+      <div className="content"><div className="section-title"><div><p className="eyebrow">{tr("Repository catalog")}</p><h2>{tr(`${filtered.length} repositories in view`)}</h2></div><span>{scenarioName}</span></div><div className="catalog-toolbar"><label>{tr("Sort by")}<select value={sortBy} onChange={(event) => setSortBy(event.target.value)}><option value="updated-desc">{tr("Recently updated")}</option><option value="score-desc">{tr("Highest health score")}</option><option value="size-desc">{tr("Largest first")}</option><option value="name-asc">{tr("Name A–Z")}</option><option value="language-asc">{tr("Language")}</option></select></label><button type="button" onClick={() => setSelectedIds(filtered.map((repo) => repo.id))}>{tr("Select visible")}</button><button type="button" onClick={() => setSelectedIds([])} disabled={!selectedIds.length}>{tr("Clear selection")}</button><details className="saved-view-tools"><summary>{tr("Saved views")}{savedViews.length ? ` (${savedViews.length})` : ""}</summary><div><label>{tr("Saved view name")}<input value={savedViewName} maxLength="48" onChange={(event) => setSavedViewName(event.target.value)} /></label><button type="button" disabled={!savedViewName.trim()} onClick={saveCurrentView}>{tr("Save view")}</button>{savedViews.length > 0 && <><label>{tr("Saved views")}<select value={activeSavedView} onChange={(event) => { setActiveSavedView(event.target.value); const view = savedViews.find((item) => item.name === event.target.value); if (view) applySavedView(view); }}><option value="">—</option>{savedViews.map((view) => <option key={view.name} value={view.name}>{view.name}</option>)}</select></label><button type="button" disabled={!activeSavedView} onClick={deleteSavedView}>{tr("Delete view")}</button></>}</div></details></div>{selectedIds.length > 0 && <div className="bulk-actions" role="toolbar" aria-label={tr("Bulk actions")}><strong>{selectedIds.length} {tr("selected")}</strong><button type="button" onClick={() => applyBulkDecision("keep")}>{tr("Keep separate")}</button><button type="button" onClick={() => applyBulkDecision("archive")}>{tr("Archive")}</button>{targets.some((target) => target.kind !== "archive") && <label>{tr("Move to")}<select value="" onChange={(event) => event.target.value && applyBulkDecision("merge", event.target.value)}><option value="">—</option>{targets.filter((target) => target.kind !== "archive").map((target) => <option key={target.id} value={target.id}>{target.name}</option>)}</select></label>}</div>}<div className="repo-grid">{filtered.map((repo) => <RepositoryCard key={repo.id} repo={repo} selected={selected.id === repo.id} checked={selectedIds.includes(repo.id)} onToggle={toggleRepository} onClick={() => setSelectedId(repo.id)} tr={tr} />)}</div></div>
+      <RepositoryDetail repo={selected} targets={targets} analysis={analysis} onUpdate={updateSelected} tagInput={tagInput} setTagInput={setTagInput} onAddTag={addTag} onRemoveTag={removeTag} tr={tr} />
+    </section> : mode === "proposed" ? <ProposedMap repositories={repositories} targets={targets} scenarioName={scenarioName} onMove={moveRepository} onSelect={(id) => { setSelectedId(id); setMode("current"); }} onCurrent={() => setMode("current")} tr={tr} /> : <CompareView comparison={comparison} targets={targets} onCurrent={() => setMode("current")} tr={tr} />}
 
-    <section className="review-panel"><div><p className="eyebrow">External review, optional</p><h2>Export the migration plan</h2><p>Download a JSON manifest and Markdown plan for human review. The files never contain tokens or repository contents, and they never execute Git operations.</p></div><div className="review-actions"><button className="primary" onClick={() => download("repo-atlas-migration-manifest.json", JSON.stringify(migrationManifest, null, 2), "application/json")}>Download manifest</button><button className="secondary" onClick={() => download("repo-atlas-migration-plan.md", manifestToMarkdown(migrationManifest), "text/markdown")}>Download Markdown</button><button className="secondary" onClick={makePrompt}>Generate AI prompt</button>{prompt && <button className="secondary" onClick={copyPrompt}>Copy prompt</button>}</div>{prompt && <textarea className="prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} aria-label="Generated AI review prompt" />}</section>
+    <section className="review-panel"><div><p className="eyebrow">{tr("External review, optional")}</p><h2>{tr("Export the migration plan")}</h2><p>{tr("Download a JSON manifest and Markdown plan for human review. The files never contain tokens or repository contents, and they never execute Git operations.")}</p></div><div className="review-actions"><button className="primary" onClick={() => download("repo-atlas-migration-manifest.json", JSON.stringify(migrationManifest, null, 2), "application/json")}>{tr("Download manifest")}</button><button className="secondary" onClick={() => download("repo-atlas-migration-plan.md", manifestToMarkdown(migrationManifest), "text/markdown")}>{tr("Download Markdown")}</button><button className="secondary" onClick={makePrompt}>{tr("Generate AI prompt")}</button>{prompt && <button className="secondary" onClick={copyPrompt}>{tr("Copy prompt")}</button>}</div>{prompt && <textarea className="prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} aria-label={tr("Generated AI review prompt")} />}</section>
 
-    <section className="safety"><div><p className="eyebrow">Migration safety</p><h2>History is a decision, not an afterthought</h2></div><ol><li><b>Scenario first</b><span>Accept, edit, or discard recommendations without touching a repository.</span></li><li><b>Recorded strategy</b><span>Each move explicitly uses full history or a squashed import.</span></li><li><b>Exact state</b><span>Imports include the source branch and commit SHA when GitHub metadata is available.</span></li><li><b>Human execution</b><span>Atlas exports a review plan; it never runs destructive Git actions.</span></li></ol></section>
-  </main>;
+    <section className="safety"><div><p className="eyebrow">{tr("Migration safety")}</p><h2>{tr("History is a decision, not an afterthought")}</h2></div><ol><li><b>{tr("Scenario first")}</b><span>{tr("Accept, edit, or discard recommendations without touching a repository.")}</span></li><li><b>{tr("Recorded strategy")}</b><span>{tr("Each move explicitly uses full history or a squashed import.")}</span></li><li><b>{tr("Exact state")}</b><span>{tr("Imports include the source branch and commit SHA when GitHub metadata is available.")}</span></li><li><b>{tr("Human execution")}</b><span>{tr("Atlas exports a review plan; it never runs destructive Git actions.")}</span></li></ol></section>
+    {toast && <div className="toast" role="status"><span>{tr(toast.message)}</span>{toast.undoable && scenarioHistory.canUndo && <button type="button" onClick={undoScenario}>{tr("Undo")}</button>}<button type="button" aria-label={tr("Dismiss notification")} onClick={() => setToast(null)}>×</button></div>}
+  </main></>;
 }
-
-function RepositoryCard({ repo, selected, onClick }) { return <button type="button" className={`repo-card ${selected ? "selected" : ""}`} onClick={onClick}><div className="card-top"><span className={`status ${repo.status.toLowerCase()}`}>{repo.status}</span><span className="score">{repo.score}</span></div><h3>{repo.id}</h3><p>{repo.description}</p><div className="tags">{repo.tags.slice(0, 3).map((tag) => <span key={tag}>#{tag}</span>)}</div>{repo.technologies?.length > 0 && <div className="technologies">{repo.technologies.slice(0, 4).map((technology) => <span key={technology}>{technology}</span>)}</div>}<footer><span>{repo.domain}</span><span>{repo.language}</span><span className={`action ${repo.decision}`}>{decisionText[repo.decision]}</span></footer></button>; }
-
-function RepositoryDetail({ repo, targets, analysis, onUpdate, tagInput, setTagInput, onAddTag, onRemoveTag }) { const target = targets.find((item) => item.id === analysis.target); const accept = () => onUpdate({ decision: analysis.action, target: analysis.action === "merge" ? analysis.target : null }); return <aside className="detail"><p className="eyebrow">Repository profile</p><h2>{repo.id}</h2><p>{repo.description}</p>{repo.technologies?.length > 0 && <div className="detail-technologies"><span>Detected technologies</span><div className="technologies">{repo.technologies.map((technology) => <span key={technology}>{technology}</span>)}</div></div>}<div className={`analysis ${analysis.action}`}><div><strong>Recommendation: {decisionText[analysis.action]}</strong><span>{analysis.confidence}% confidence</span></div>{target && <p>Suggested target: <b>{target.name}</b></p>}<ul>{analysis.reasons.map((reason) => <li key={reason}>+ {reason}</li>)}{analysis.concerns.map((concern) => <li className="concern" key={concern}>! {concern}</li>)}</ul><button type="button" onClick={accept}>Adopt recommendation</button></div><dl><div><dt>Domain</dt><dd>{repo.domain}</dd></div><div><dt>Health score</dt><dd>{repo.score}/100</dd></div><div><dt>Last updated</dt><dd>{repo.updated}</dd></div></dl><label>Decision<select value={repo.decision} onChange={(event) => onUpdate({ decision: event.target.value, target: event.target.value === "merge" ? repo.target ?? targets[0].id : null })}>{actions.slice(1).map((item) => <option key={item} value={item}>{decisionText[item]}</option>)}</select></label>{repo.decision === "merge" && <><label>Target monorepo<select value={repo.target ?? targets[0].id} onChange={(event) => onUpdate({ target: event.target.value })}>{targets.map((target) => <option key={target.id} value={target.id}>{target.name}</option>)}</select></label><label>History strategy<select value={repo.history} onChange={(event) => onUpdate({ history: event.target.value })}><option value="full">Preserve full history</option><option value="squash">Squash into import commit</option></select></label></>}<div className="tag-editor"><span>Tags</span><div className="tags editable">{repo.tags.map((tag) => <button type="button" key={tag} onClick={() => onRemoveTag(tag)} title={`Remove ${tag}`}>#{tag} ×</button>)}</div><form onSubmit={onAddTag}><input value={tagInput} onChange={(event) => setTagInput(event.target.value)} placeholder="Add custom tag" /><button type="submit">Add</button></form></div></aside>; }
-
-function ProposedMap({ repositories, targets, onSelect, onCurrent }) { const independent = repositories.filter((repo) => repo.decision === "keep"); const archived = repositories.filter((repo) => repo.decision === "archive"); return <section className="proposal"><div className="section-title"><div><p className="eyebrow">Scenario: consolidation 2026</p><h2>Proposed repository map</h2><p>This is a preview of accepted decisions. No repository has been moved.</p></div><button className="secondary" onClick={onCurrent}>Edit decisions</button></div><div className="map-grid">{targets.map((target) => { const members = repositories.filter((repo) => repo.decision === "merge" && repo.target === target.id); return <article className="map-group" key={target.id}><span className="map-kind">Target monorepo</span><h3>{target.name}</h3><p>{target.description}</p><small>{target.strategy}</small><div>{members.length ? members.map((repo) => <button key={repo.id} onClick={() => onSelect(repo.id)}>{repo.id}<span>{repo.history === "full" ? "Full history" : "Squash"}</span></button>) : <em>No planned imports</em>}</div></article>; })}<article className="map-group independent"><span className="map-kind">Independent</span><h3>Keep separate</h3><p>Distinct product, deployment, client, or portfolio scope.</p><div>{independent.map((repo) => <button key={repo.id} onClick={() => onSelect(repo.id)}>{repo.id}</button>)}</div></article><article className="map-group archive"><span className="map-kind">Archive</span><h3>Preserve, don’t delete</h3><p>Original URLs and history remain available.</p><div>{archived.map((repo) => <button key={repo.id} onClick={() => onSelect(repo.id)}>{repo.id}</button>)}</div></article></div></section>; }
-
-function CompareView({ comparison, targets, onCurrent }) { const destination = (repository) => targets.find((target) => target.id === repository.target)?.name ?? "Unresolved target"; return <section className="compare-view"><div className="section-title"><div><p className="eyebrow">Scenario diff</p><h2>Current → proposed</h2><p>Every row is a planned change, not a Git operation.</p></div><button className="secondary" onClick={onCurrent}>Resolve decisions</button></div><div className="compare-summary"><Metric label="Moves" value={comparison.moves.length} hint="Become subprojects" tone="blue" /><Metric label="Archives" value={comparison.archives.length} hint="Retain history and URL" tone="warning" /><Metric label="Unchanged" value={comparison.unchanged.length} hint="Stay standalone" tone="accent" /><Metric label="Conflicts" value={comparison.conflicts.length} hint="Must be resolved" tone={comparison.conflicts.length ? "warning" : ""} /></div><div className="change-list"><h3>Planned moves</h3>{comparison.moves.length ? comparison.moves.map((repository) => <article key={repository.id}><b>{repository.id}</b><span>standalone</span><strong>→</strong><span>{destination(repository)}</span><small>{repository.history === "full" ? "Preserve full history" : "Squash import"}</small></article>) : <p>No moves accepted yet.</p>}</div>{comparison.conflicts.length > 0 && <div className="conflicts"><h3>Blocking conflicts</h3>{comparison.conflicts.map(({ repository, message }) => <p key={repository.id}><b>{repository.id}:</b> {message}</p>)}</div>}<div className="review-list"><h3>Decisions worth reviewing</h3>{comparison.review.length ? comparison.review.map(({ repository, analysis }) => <p key={repository.id}><b>{repository.id}</b>: current decision is <em>{decisionText[repository.decision]}</em>; current rules suggest <em>{decisionText[analysis.action]}</em> ({analysis.confidence}%).</p>) : <p>Accepted decisions match the active recommendation rules.</p>}</div></section>; }
-
-function Metric({ label, value, hint, tone = "" }) { return <article className={`metric ${tone}`}><span>{label}</span><strong>{value}</strong><small>{hint}</small></article>; }
-function Filter({ label, value, onChange, values }) { return <label>{label}<select value={value} onChange={(event) => onChange(event.target.value)}>{values.map((item) => <option key={item} value={item}>{item === "all" ? "All" : item}</option>)}</select></label>; }
 
 createRoot(document.getElementById("root")).render(<App />);

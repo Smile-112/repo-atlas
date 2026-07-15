@@ -1,7 +1,7 @@
 # Repo Atlas — product requirements and delivery plan
 
 **Status:** living product document  
-**Last updated:** 2026-07-14  
+**Last updated:** 2026-07-15
 **Product type:** open-source, local-first, self-hosted repository portfolio workspace
 
 ## 1. Product purpose
@@ -82,6 +82,8 @@ minecraft-addons
 ```
 
 A repository can have at most one accepted target in a scenario. Atlas must surface conflicts rather than silently assigning multiple targets.
+
+Every workspace also contains one non-removable Archive target. Completed or inactive repositories may be recommended for an `archive` action whose migration destination is this shared monorepo. This keeps archive intent distinct from a thematic monorepo merge while avoiding a portfolio of many standalone archived repositories.
 
 ## 6. Recommendation engine
 
@@ -169,14 +171,16 @@ Prompt templates: structural review, migration-plan review, and rollback-plan ex
 | 10a | Structured container logging for startup, runtime, imports, and errors | Implemented |
 | 11 | GitLab and local Git adapters | Implemented; both adapters are read-only and server-side |
 | 12 | GitHub App authentication and team features | Future |
-| 13 | Separate UI/UX acceptance checks and browser interaction regression tests | Baseline acceptance suite and manual browser checklist implemented; automated browser interaction runner remains planned |
+| 13 | Separate UI/UX acceptance checks and browser interaction regression tests | Implemented with static acceptance checks and Playwright browser scenarios |
 | 14 | User-selectable visual themes | Implemented: Atlas, Claude, ElevenLabs, and Ollama themes |
 | 15 | Russian and English UI localisation with a language switcher (AI-review prompt remains intentionally untranslated) | Implemented; language selection persists locally and the AI-review prompt remains English |
-| 16 | Adaptive-layout review for narrow and touch screens | Future |
+| 16 | Adaptive-layout review for narrow and touch screens | Baseline implemented and covered by a phone-viewport regression test |
+| 17 | Editable scenarios, target groups, bulk actions, saved views, and workspace transfer | Implemented with undo/redo and versioned JSON import/export |
+| 18 | Optional self-hosted access protection | Implemented with opt-in Basic authentication and failed-attempt rate limiting; GitHub App/team identity remains future |
 
 ## 11. Current implementation notes
 
-The current public demo intentionally uses synthetic data. Tags, decisions, targets, and history strategies are stored locally in the browser using the versioned `repo-atlas.workspace.v2` schema. They never leave the browser and can be reset to the demo workspace. Generated prompts still live only in memory and reset after a page refresh.
+The current public demo intentionally uses synthetic data. Tags, decisions, editable targets, saved views, and scenario metadata are stored locally in the browser using the versioned `repo-atlas.workspace.v3` schema. Version 2 workspaces migrate automatically, and the complete workspace can be transferred through JSON import/export. Generated prompts still live only in memory and reset after a page refresh.
 
 Self-hosted deployments provide read-only GitHub, GitLab, and explicitly configured local Git importers. Live-token verification remains deferred; the import adapters are covered by mocked API and normalization tests.
 

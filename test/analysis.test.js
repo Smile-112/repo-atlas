@@ -16,3 +16,21 @@ test("hard stop-factor prevents a merge recommendation", () => {
   assert.equal(result.action, "keep");
   assert.equal(result.hardStops.length, 1);
 });
+
+test("recommends the shared archive as an archive action, not a normal merge", () => {
+  const result = analyseRepository(
+    { tags: ["legacy"], technologies: ["Go"], domain: "Portfolio", size: 8, status: "Archived" },
+    [...targets, { id: "archive", kind: "archive" }]
+  );
+  assert.equal(result.action, "archive");
+  assert.equal(result.target, "archive");
+  assert.ok(result.confidence >= 60);
+});
+
+test("reports confidence in keeping a repository separately instead of exposing its weak merge score", () => {
+  const result = analyseRepository({ tags: [], technologies: ["JavaScript"], domain: "Unclassified", size: 100, status: "Active" }, targets);
+  assert.equal(result.action, "keep");
+  assert.equal(result.confidence, 90);
+  assert.equal(result.criteria.length, 5);
+  assert.match(result.criteria.at(-1), /scored 12\/100; threshold is 60/);
+});

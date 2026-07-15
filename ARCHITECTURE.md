@@ -12,7 +12,7 @@ Repo Atlas is a self-hosted, local-first workspace for understanding a portfolio
 4. Maintain reversible reorganization scenarios with a **current** and a **proposed** map.
 5. Export a reviewable consolidation report and an optional AI-review prompt.
 
-The initial UI uses static demo data so it is safe to publish and evaluate without a token. Self-hosted deployments can replace it with read-only GitHub, GitLab, or explicitly mounted local Git metadata. The browser keeps custom tags, built-in decisions, target monorepos, history strategy, scenario visualization, and a local-only AI prompt export.
+The initial UI uses static demo data so it is safe to publish and evaluate without a token. Self-hosted deployments can replace it with read-only GitHub, GitLab, or explicitly mounted local Git metadata. The browser keeps custom tags, built-in decisions, editable target groups, history strategy, saved views, named scenarios, and a local-only AI prompt export. The versioned workspace can also be imported and exported as JSON.
 
 ## Workspace decisions
 
@@ -35,10 +35,10 @@ Repo Atlas does not require an LLM and does not send workspace data to one. It c
 | --- | --- |
 | UI | Catalog, graph, filters, reports, and human review. |
 | Import adapters | Read-only GitHub and GitLab APIs plus explicitly configured local Git paths. |
-| Workspace store | Cached metadata and user-maintained classifications. |
+| Workspace store | Versioned local metadata, editable target groups, saved views, and undo/redo scenario history. |
 | Analysis engine | Deterministic health checks and explainable recommendations. |
 | Export | Deterministic Markdown and JSON migration plans plus an optional AI-review prompt. |
 
 ## Security model
 
-Private repository data stays in the deployment where the token is configured. GitHub tokens must be fine-grained, read-only, and scoped to the selected account/repositories; GitLab tokens use `read_api`. Tokens are never included in exported data or client bundles. The default Compose binding is loopback-only, the runtime container uses an unprivileged user, and `.dockerignore` excludes local credentials from the build context.
+Private repository data stays in the deployment where the token is configured. GitHub tokens must be fine-grained, read-only, and scoped to the selected account/repositories; GitLab tokens use `read_api`. Tokens are never included in exported data or client bundles. The default Compose binding is loopback-only, the runtime container uses an unprivileged user, and `.dockerignore` excludes local credentials from the build context. Operators may enable rate-limited HTTP Basic protection with server-only environment variables; non-local deployments still require HTTPS termination because Basic credentials are only encoded, not encrypted.

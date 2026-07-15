@@ -1,6 +1,6 @@
 # Self-hosting Repo Atlas
 
-This guide runs Repo Atlas locally with Docker Compose. The first public version has no application login, so the default Compose configuration binds it to `127.0.0.1` only. Do not expose it directly to the internet.
+This guide runs Repo Atlas locally with Docker Compose. The default configuration binds it to `127.0.0.1` only. Optional HTTP Basic protection is available, but an internet-facing deployment must also use HTTPS through a trusted reverse proxy.
 
 ## 1. Create a fine-grained GitHub token
 
@@ -30,9 +30,12 @@ Edit `.env` and set the token. `GITHUB_OWNERS` is a comma-separated allow-list f
 GITHUB_TOKEN=github_pat_replace_this_with_your_token
 GITHUB_OWNERS=Smile-112,another-owner-or-organisation
 PORT=8080
+# Optional access protection:
+REPO_ATLAS_ACCESS_USER=atlas
+REPO_ATLAS_ACCESS_KEY=replace-with-a-long-random-secret
 ```
 
-The token is read by the server container only. Never commit `.env`, paste it into the browser, or prefix the variable with `VITE_`.
+The tokens and access key are read by the server container only. Never commit `.env`, paste credentials into the browser bundle, or prefix these variables with `VITE_`. When `REPO_ATLAS_ACCESS_KEY` is unset, access protection remains disabled.
 
 ## 3. Start
 
@@ -95,4 +98,4 @@ docker compose down
 
 ## Security boundary
 
-The browser stores the selected workspace locally. The server holds the GitHub token. This first release does not authenticate web users; if you need remote access, put the service behind an authenticated reverse proxy before changing the Compose port binding from `127.0.0.1`.
+The browser stores the selected workspace locally. The server holds provider tokens. Built-in Basic protection rate-limits failed attempts and protects the UI and import APIs; `/api/health` stays public for container health checks. Basic credentials are not encrypted by HTTP, so put the service behind HTTPS before changing the Compose port binding from `127.0.0.1`.

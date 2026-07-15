@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildMigrationManifest, manifestToMarkdown } from "../src/migrationPlan.js";
+import { buildMigrationManifest, manifestToMarkdown, migrationDestinationPath } from "../src/migrationPlan.js";
 
 test("creates a non-destructive manifest with exact import metadata", () => {
   const manifest = buildMigrationManifest([{ id: "owner/bridge", decision: "merge", target: "minecraft-addons", history: "full", url: "https://github.com/owner/bridge", defaultBranch: "main", headSha: "abc123" }], [{ id: "minecraft-addons" }], "2026-07-15T00:00:00.000Z");
@@ -29,4 +29,18 @@ test("blocks duplicate destination paths before commands are generated", () => {
   assert.equal(manifest.moves[1].status, "destination-conflict");
   assert.deepEqual(manifest.moves[0].commands, []);
   assert.equal(manifest.unresolved.length, 2);
+});
+
+test("uses an editable target destination folder", () => {
+  const repository = { id: "owner/Project" };
+  assert.equal(migrationDestinationPath(repository, { id: "custom", pathPrefix: "packages/tools" }), "packages/tools/project");
+  assert.equal(migrationDestinationPath(repository, { id: "custom", pathPrefix: "../../escape" }), "projects/project");
+});
+
+test("plans an archive decision as an import into the archive monorepo", () => {
+  const repository = { id: "owner/legacy", decision: "archive", target: "archive", history: "full", url: "https://example.test/legacy", defaultBranch: "main", headSha: "def456" };
+  const manifest = buildMigrationManifest([repository], [{ id: "archive", kind: "archive", pathPrefix: "repositories" }]);
+  assert.equal(manifest.moves[0].decision, "archive");
+  assert.equal(manifest.moves[0].targetMonorepo, "archive");
+  assert.equal(manifest.archives[0].action, "import-to-archive-monorepo-then-archive-original");
 });
